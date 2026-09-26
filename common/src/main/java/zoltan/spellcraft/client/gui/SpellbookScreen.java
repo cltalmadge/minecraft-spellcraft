@@ -145,11 +145,11 @@ public final class SpellbookScreen extends Screen {
     }
 
     private int rowX() {
-        return (width - font.width("Heal Minor Wounds")) / 2;
+        return (width - rowWidth()) / 2;
     }
 
     private int rowWidth() {
-        return font.width("Heal Minor Wounds");
+        return snapshot.spells().stream().mapToInt(s -> font.width(s.name())).max().orElse(100);
     }
 
     private int rowYFor(int index) {

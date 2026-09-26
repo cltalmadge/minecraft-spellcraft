@@ -30,22 +30,8 @@ public final class SpellcraftFabricClient implements ClientModInitializer {
     }
 
     private static SpellbookSnapshot placeholderSnapshot() {
-        return new SpellbookSnapshot(
-                List.of(
-                        new SpellbookEntrySnapshot(
-                                "Flare",
-                                List.of("Damage Health", "Magnitude: 6", "Delivery: Ray", "Cost: 12")),
-                        new SpellbookEntrySnapshot(
-                                "Heal Minor Wounds",
-                                List.of("Restore Health", "Magnitude: 5", "Delivery: Self", "Cost: 10")),
-                        new SpellbookEntrySnapshot(
-                                "Fleet Step",
-                                List.of(
-                                        "Fortify Speed",
-                                        "Magnitude: 10",
-                                        "Duration: 20s",
-                                        "Delivery: Self",
-                                        "Cost: 14")))
-        );
+        return new SpellbookSnapshot(List.of(new SpellbookEntrySnapshot(
+                "Thermal transmission", List.of("Heat participates in blaze matter.",
+                "A directed pair establishes transmission.", "Unenclosed influence dissipates after release."))));
     }
 }

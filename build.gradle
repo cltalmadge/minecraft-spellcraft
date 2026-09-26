@@ -35,5 +35,5 @@ subprojects {
 tasks.register('buildAll') {
     group = 'build'
     description = 'Runs domain tests, checks common Minecraft code, and builds both loader jars.'
-    dependsOn ':domain:test', ':common:compileJava', ':fabric:build', ':neoforge:build'
+    dependsOn ':domain:test', ':common:compileJava', ':common:test', ':fabric:build', ':neoforge:build'
 }

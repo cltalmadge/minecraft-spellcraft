@@ -75,3 +75,10 @@ processResources {
         expand resourceProperties
     }
 }
+
+// World integration tests are opt-in and never packaged in normal distributions.
+if (providers.gradleProperty('gameTests').isPresent()) {
+    sourceSets.main.java.srcDir 'src/gametest/java'
+    sourceSets.main.java.srcDir '../common/src/gametest/java'
+    sourceSets.main.resources.srcDir 'src/gametest/resources'
+}

@@ -2,5 +2,15 @@
   "item.spellcraft.spellbook": "Spellbook",
   "screen.spellcraft.spellbook.title": "Spellbook",
   "screen.spellcraft.spellbook.empty": "No spells learned yet.",
-  "screen.spellcraft.spellbook.close": "Close"
+  "screen.spellcraft.spellbook.close": "Close",
+  "item.spellcraft.wand": "Experimental Wand",
+  "item.spellcraft.spell_page": "Recorded Spell Page",
+  "cast.spellcraft.applied": "Influence released.",
+  "cast.spellcraft.no_target": "No recipient in reach.",
+  "cast.spellcraft.unsupported_form": "This Form has no manifestation path.",
+  "cast.spellcraft.unsupported_operation": "This structure cannot yet manifest.",
+  "cast.spellcraft.invalid_caster": "Cannot manifest here.",
+  "cast.spellcraft.insufficient_source": "The source cannot sustain this burden.",
+  "cast.spellcraft.incompatible_vessel": "The vessel cannot hold this structure.",
+  "cast.spellcraft.cooldown": "The conduit is recovering."
 }

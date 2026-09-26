@@ -11,6 +11,9 @@ import net.minecraft.world.item.Item;
 
 import zoltan.minecraft.MinecraftMagic;
 import zoltan.spellcraft.items.SpellbookItem;
+import zoltan.spellcraft.items.WandItem;
+import zoltan.spellcraft.persistence.SpellComponents;
+import zoltan.spellcraft.material.DiscoveryFixtures;
 
 public final class FabricItems {
     public static final ResourceKey<Item> SPELLBOOK_KEY =
@@ -26,6 +29,14 @@ public final class FabricItems {
                     new Item.Properties().stacksTo(1)
             );
 
+    public static final Item WAND = register(key("wand"), WandItem::new,
+            new Item.Properties().stacksTo(1).component(SpellComponents.RECORDED_SPELL, DiscoveryFixtures.directedHeat()));
+    public static final Item SPELL_PAGE = register(key("spell_page"), Item::new,
+            new Item.Properties().stacksTo(1).component(SpellComponents.RECORDED_SPELL, DiscoveryFixtures.directedHeat()));
+
+    private static ResourceKey<Item> key(String name) {
+        return ResourceKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath(MinecraftMagic.MOD_ID, name));
+    }
     private FabricItems() {}
 
     private static <T extends Item> T register(
