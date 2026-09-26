@@ -1,123 +1,72 @@
 # Spellcraft
 
-Spellcraft is a Minecraft Java Edition 26.3 mod for discovering magic through relationships between Form, Number, and Geometry. A spell is a stable structure compiled from a physical experiment, not a named ability with configured effects.
+Spellcraft is a Minecraft Java Edition 26.3 mod about discovering magic through experimentation. Its design centers on three ideas: Form describes the quality being manipulated, Number describes the relationship, and Geometry describes how that relationship is arranged. Materials participate in Forms, and their arrangement gives a spell its meaning.
 
-```text
-ArcaneWorking → WorkingAnalyzer → SpellPattern → SpellCompiler → SpellProgram
-                                                                    ↓
-                                                             RecordedSpell
-                                                                    ↓
-                                                  source / conduit / vessel checks
-                                                                    ↓
-                                                   MinecraftSpellRuntime → Form handlers
-```
+The mod supports Fabric and NeoForge. The playable prototype includes a wand that transmits Heat to a living target, a page that holds a recorded spell, and a spellbook. Spell construction currently happens in code; there is no in-game spellcrafting interface yet.
 
-Dependencies flow inward: `fabric` and `neoforge` consume `common`, which consumes `domain`. Loader modules compile shared sources into their own distributions.
+## Build
 
-- `domain`: pure Java values, construction analysis, compilation, burden, containment. No Minecraft or loader imports. Its packages follow the spell lifecycle:
+Use JDK 25. The included Gradle wrapper downloads the build tools and dependencies on its first run.
 
-  ```text
-  form / material → working → pattern → program → manifestation / vessel
-  ```
-
-  `form` defines magical qualities, `material` describes participation in them,
-  `working` owns physical constructions and analysis, `pattern` owns inferred
-  meaning, `program` owns portable execution data, `manifestation` owns burden
-  and sources, and `vessel` owns containment compatibility.
-- `common`: material correspondence, codecs, item components, authoritative casting, targeting, Heat/Motion manifestation, presentation snapshots.
-- `fabric` / `neoforge`: component/item registration and platform entry points. Magical rules are shared.
-
-## The first grammar
-
-`FormId` and `MaterialId` are validated, extensible namespaced identities. Heat and Motion are the only bootstrap Forms. `MaterialProfile` holds immutable, sorted, unique `FormParticipation` entries. Strength ranges from 0 (absent) to 1 (full participation); it is an internal semantic quantity, not a promised player-facing stat.
-
-`ArcaneWorking` stores immutable logical-grid nodes, directed strokes, and explicit boundary membership. Materials without active participation can be geometric anchors. IDs and strokes are canonically ordered, so reordering input collections does not change analysis or compilation.
-
-| Physical construction | Inferred Number | Operation / geometry |
-| --- | --- | --- |
-| One active locus | Monad | Concentration / point |
-| Two active loci joined by one directed stroke | Dyad | Transfer / directed line |
-| Three active loci in a forward, straight directed chain | Triad | Mediation / line |
-| One active center with four inactive, equally distant cardinal anchors | Monad | Concentration / radial, inward or outward from strokes |
-| Four equivalent active cardinal arms around an inactive center, with uniformly directed spokes | Tetrad | Stabilization / intersection |
-| The tetradic construction with a boundary enclosing every node | Tetrad | Stabilization / enclosure, sustained |
-
-Four unrelated nodes do **not** imply Tetrad. Bent chains, asymmetric arms, mixed spoke direction, partial/nested boundaries, duplicate/coincident nodes, and unknown references are rejected. More general triangles, polygons, and compound numerical relationships are deliberately outside this first grammar.
-
-Analysis returns a pattern plus diagnostics, or structured failure diagnostics. Unenclosed relationships can release transient influence with `UNCONTAINED_INFLUENCE`; enclosure without tetradic stability fails with `UNSTABLE_STRUCTURE`. The domain contains no final UI strings. Diagnostics reserve optional node/Form context for later workbench feedback.
-
-Form participation is averaged across active loci. A mixed working retains both Forms; a symmetrical repetition stabilizes structure without arbitrarily multiplying intensity. This is a provisional explicit law, not a balance claim.
-
-`SpellPattern` retains the observed numerical principle and derives its operation. `SpellCompiler` emits:
-
-```text
-Invoke(FormParticipation)+ → Operate → Shape → Release | Sustain
-```
-
-These are domain instructions, not a bytecode VM. The program validates grammar, versions, unique invocations, and containment/release consistency. Heat and Motion use identical transfer/shape/release instructions. Radial Heat changes the operation and geometry. Contained Heat changes stability, geometry, and persistence. No spell name selects behavior.
-
-## Runtime and its limits
-
-The experimental wand reads `spellcraft:recorded_spell` from the authoritative held stack. `CastService` checks the caster, cooldown, vessel, and source before invoking the runtime. Origin, aim, wall occlusion, and recipients are resolved on the server. Casting does not rerun working analysis.
-
-- Point selects the caster.
-- Line finds the nearest living recipient along a 16-block ray, clipped against blocks.
-- Radial selects visible living recipients within four blocks, and derives outward/inward impulse from the center.
-- Concentration applies the influence at each selected locus; transfer divides it among recipients.
-- Heat ignites entities and emits flame particles.
-- Motion adds a directional impulse and emits cloud particles; server-player velocity is explicitly synchronized.
-
-Mediation and stabilization are analyzed, compiled, and persisted, but **their temporal world execution is not implemented**. The runtime reports `UNSUPPORTED_OPERATION` before applying anything. In particular, `Sustain` is not silently treated as a one-shot cast. Persistent fields, transformation stages, and block interactions remain future work.
-
-`SpellBurden` separates intensity, complexity, and persistence. `BurdenModel` derives them from program semantics. `VesselProfile` checks those axes plus Form affinity and directional compatibility. The wand preserves a program and acts as a directional conduit; the caster's spirit is the source. Successful casts apply a brief recovery cooldown and provisional food exhaustion. A page preserves the same recording but cannot cast. These are seams for future source and fatigue models, not a mana economy or final balance.
-
-## Persistence and materials
-
-`RecordedSpell` and `SpellProgram` each have schema version 1. The `spellcraft:recorded_spell` Data Component has explicit tagged `Codec` and network `StreamCodec` support. Saves contain versions, a recording name, and instructions; they never contain implementation class names. Unsupported versions/tags/invalid grammar return codec errors. There is no migration engine yet.
-
-Both loaders register the same component type before creating item defaults. The bootstrap wand and page contain the same analyzed and compiled Heat experiment. No per-spell items are registered. `DiscoveryFixtures.directedMotion()` builds another working through the same analyzer/compiler, used by integration tests.
-
-`MaterialProfileResolver` owns an immutable bootstrap correspondence map: blaze powder participates in Heat; feathers participate in Motion. It accepts Minecraft items/stacks and returns domain profiles. Future datapack reloads can supply correspondence data without changing analysis or compilation.
-
-The old `EffectId`, `Delivery`, `SpellEffectSpec`, `SpellDefinition`, `CostProfile`, `SpellCostModel`, and `DefaultSpellCostModel` were unused by gameplay and have been removed. Their old cost tests were replaced with semantic, burden, and containment tests. The domain package is now `dev.spellcraft.domain`.
-
-The spellbook item, read-only snapshots, and existing Fabric screen remain presentation-only. Its placeholder text describes observations; it is not a server knowledge store. NeoForge spellbook screen wiring remains outside this slice.
-
-## Build and verification
-
-Requires JDK 25. The wrapper supplies Gradle 9.7.1. Initial dependency resolution needs network access.
+From the repository root, build both loader versions:
 
 ```bash
-./gradlew :domain:test
-./gradlew :common:compileJava
-./gradlew :common:test
-./gradlew :fabric:build
-./gradlew :neoforge:build
 ./build-all.sh
 ```
 
-`buildAll` includes domain tests, common codec tests, common compilation, and both loader builds.
-
-World integration tests are opt-in and excluded from normal jars:
+To build only one loader:
 
 ```bash
-./gradlew :neoforge:runGameTestServer -PgameTests
+./gradlew :fabric:build
+# or
+./gradlew :neoforge:build
 ```
 
-They exercise actual item use with server-world mock players, Heat ignition, Motion impulse, block occlusion, cooldown, source/vessel gates, and portable page data. The Java tests are in `common/src/gametest`; only registration is NeoForge-specific. A test-only empty laboratory structure is provided.
+The installable jars are written to `fabric/build/libs/` and `neoforge/build/libs/`. Choose the `spellcraft-fabric-<version>.jar` or `spellcraft-neoforge-<version>.jar` file, not the sources jar.
 
-Domain tests cover the primitive grammar, malformed constructions, deterministic compilation, mixtures, immutable values, program/schema validation, burden, and qualitative vessel compatibility. Common tests cover JSON and stream round trips and malformed/unknown persisted values.
+## Install
 
-Normal installable artifacts:
+1. Create a Minecraft 26.3 instance with Fabric or NeoForge.
+2. Copy the matching Spellcraft jar into the instance's `mods` directory.
+3. For Fabric, also install Fabric API for Minecraft 26.3.
+4. Launch the instance.
 
-```text
-fabric/build/libs/spellcraft-fabric-0.1.0.jar
-neoforge/build/libs/spellcraft-neoforge-0.1.0.jar
+Only the matching loader jar belongs in the game instance. The `domain` and `common` jars are development artifacts.
+
+For a Prism Launcher instance, the installation helper copies the latest built jar and replaces older Spellcraft jars for that loader:
+
+```bash
+./tools/install-prism.sh fabric "/absolute/path/to/instance/.minecraft/mods"
+# or
+./tools/install-prism.sh neoforge "/absolute/path/to/instance/.minecraft/mods"
 ```
 
-Install only the matching loader jar. Fabric also requires Fabric API. Do not install the domain/common development jars. After an opt-in GameTest build, run a normal build before distributing jars.
+## Try the wand
 
-For a development client:
+Open a world with commands enabled and give yourself a wand:
+
+```mcfunction
+/give @s spellcraft:wand
+```
+
+Hold it, aim at a living entity within 16 blocks, and right-click. The default recording transmits Heat, igniting the target and producing flame particles. Solid blocks obstruct the cast. Successful casts have a one-second cooldown and consume food exhaustion; casting requires a nonempty food bar.
+
+The message above the hotbar reports whether the cast succeeded or why it could not be performed.
+
+## Spell pages and the spellbook
+
+```mcfunction
+/give @s spellcraft:spell_page
+/give @s spellcraft:spellbook
+```
+
+The page holds the same Heat recording as the default wand. It stores spell information and has no right-click action or binding interface.
+
+On Fabric, right-click the spellbook to open a sample observation about thermal transmission. The screen displays example content rather than tracking learned spells. On NeoForge, the spellbook item has no screen yet.
+
+## Run from source
+
+Launch a development client directly through Gradle:
 
 ```bash
 ./gradlew :fabric:runClient
@@ -125,16 +74,29 @@ For a development client:
 ./gradlew :neoforge:runClient
 ```
 
-In a test world:
+Use the same in-game commands above to obtain the items.
 
-```mcfunction
-/give @s spellcraft:wand
-/give @s spellcraft:spell_page
-/give @s spellcraft:spellbook
+## Project layout
+
+- `domain` — Minecraft-independent spell construction, analysis, compilation, and compatibility rules.
+- `common` — shared Minecraft items, casting, material correspondences, persistence, and presentation.
+- `fabric` — Fabric registration and integration.
+- `neoforge` — NeoForge registration and integration.
+
+Both loaders use the same domain and common code.
+
+## Run tests
+
+Run the domain and persistence tests without launching Minecraft:
+
+```bash
+./gradlew :domain:test :common:test
 ```
 
-Aim the wand at a living entity and use it. It releases the recorded thermal relation; walls block the transmission. The page stores the same program and has no use action. Custom recordings can be supplied through the component format; no binding UI exists yet.
+Run world interaction tests in a headless Minecraft server:
 
-## Next vertical slice
+```bash
+./gradlew :neoforge:runGameTestServer -PgameTests
+```
 
-Build an Arcane Workbench block entity that stores material placement and drawn relationships, analyzes them on the server, presents diagnostics through light/sound/material response, and records a successful program onto a page. Final GUI polish, progression, research notebooks, additional Forms, general graph algebra, datapack reload infrastructure, and sustained field execution are intentionally deferred.
+The `gameTests` property enables test-only sources and resources. Build without that property when producing a jar to install or distribute. `./build-all.sh` runs the unit tests and builds both normal loader jars.
