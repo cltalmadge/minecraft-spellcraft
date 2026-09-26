@@ -5,6 +5,8 @@ import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
 import dev.spellcraft.domain.form.*;
 import dev.spellcraft.domain.material.MaterialId;
+import dev.spellcraft.domain.material.MaterialProfile;
+import dev.spellcraft.domain.working.*;
 import dev.spellcraft.domain.pattern.*;
 import dev.spellcraft.domain.program.*;
 import io.netty.buffer.Unpooled;
@@ -80,7 +82,7 @@ class SpellCodecsTest {
             assertEquals(original, SpellCodecs.RECORDED.parse(JsonOps.INSTANCE, json).getOrThrow());
             assertFalse(json.toString().contains("dev.spellcraft"));
             assertFalse(json.toString().contains("position"));
-            assertEquals(2, json.getAsJsonObject("program").get("schema_version").getAsInt());
+            assertEquals(3, json.getAsJsonObject("program").get("schema_version").getAsInt());
         }
     }
 
@@ -89,17 +91,17 @@ class SpellCodecsTest {
         var decoded = SpellCodecs.RECORDED.parse(JsonOps.INSTANCE, encode(original)).getOrThrow();
         var structure = decoded.program().structure();
         assertEquals(new MaterialId("test:copper"), structure.single(LocusRole.MEDIATOR).material());
-        assertEquals(List.of(new FormParticipation(Forms.MOTION, 1)), structure.single(LocusRole.MEDIATOR).forms().terms());
-        assertEquals(List.of(new FormParticipation(Forms.HEAT, 1)), structure.single(LocusRole.SOURCE).forms().terms());
-        assertTrue(structure.single(LocusRole.RECIPIENT).forms().terms().isEmpty());
+        assertEquals(List.of(new FormParticipation(Forms.MOTION, 1)), structure.single(LocusRole.MEDIATOR).expressedForms().terms());
+        assertEquals(List.of(new FormParticipation(Forms.HEAT, 1)), structure.single(LocusRole.SOURCE).expressedForms().terms());
+        assertTrue(structure.single(LocusRole.RECIPIENT).expressedForms().terms().isEmpty());
         assertEquals(List.of(relation("a", "b"), relation("b", "c")), structure.relations());
     }
 
     @Test void reversedDyadRemainsDifferentAfterRoundTrip() {
         var forward = recording(new Geometry.Line(), NumericalPrinciple.DYAD);
         var reversed = forward.program().structure().loci().stream().map(l -> new SpellLocus(l.id(),
-            l.role() == LocusRole.SOURCE ? LocusRole.RECIPIENT : LocusRole.SOURCE, l.material(), l.forms())).toList();
-        var reverseProgram = new SpellProgram(2, new SpellStructure(reversed, List.of(relation("c", "a"))), forward.program().instructions());
+            l.role() == LocusRole.SOURCE ? LocusRole.RECIPIENT : LocusRole.SOURCE, l.material(), l.expressedForms())).toList();
+        var reverseProgram = new SpellProgram(SpellProgram.CURRENT_SCHEMA_VERSION, new SpellStructure(reversed, List.of(relation("c", "a"))), forward.program().instructions());
         var reverse = new RecordedSpell(1, forward.name(), reverseProgram);
         var decoded = SpellCodecs.RECORDED.parse(JsonOps.INSTANCE, encode(reverse)).getOrThrow();
         assertEquals(reverse, decoded);
@@ -112,7 +114,7 @@ class SpellCodecsTest {
         var original = encode(recording(new Geometry.Line(), NumericalPrinciple.DYAD));
         var outer = original.deepCopy(); outer.addProperty("schema_version", 2);
         assertTrue(SpellCodecs.RECORDED.parse(JsonOps.INSTANCE, outer).error().isPresent());
-        for (int version : List.of(1, 3)) {
+        for (int version : List.of(1, 2, 4)) {
             var inner = original.deepCopy(); inner.getAsJsonObject("program").addProperty("schema_version", version);
             assertTrue(SpellCodecs.RECORDED.parse(JsonOps.INSTANCE, inner).error().isPresent());
         }
@@ -135,9 +137,9 @@ class SpellCodecsTest {
             s -> s.getAsJsonArray("relations").get(0).getAsJsonObject().addProperty("to", "missing"),
             s -> s.getAsJsonArray("relations").get(0).getAsJsonObject().addProperty("to", "a"),
             s -> s.getAsJsonArray("relations").add(s.getAsJsonArray("relations").get(0).deepCopy()),
-            s -> s.getAsJsonArray("loci").get(1).getAsJsonObject().getAsJsonArray("forms").add(
-                s.getAsJsonArray("loci").get(1).getAsJsonObject().getAsJsonArray("forms").get(0).deepCopy()),
-            s -> s.getAsJsonArray("loci").get(0).getAsJsonObject().getAsJsonArray("forms").get(0).getAsJsonObject().addProperty("strength", Double.NaN)
+            s -> s.getAsJsonArray("loci").get(1).getAsJsonObject().getAsJsonArray("expressed_forms").add(
+                s.getAsJsonArray("loci").get(1).getAsJsonObject().getAsJsonArray("expressed_forms").get(0).deepCopy()),
+            s -> s.getAsJsonArray("loci").get(0).getAsJsonObject().getAsJsonArray("expressed_forms").get(0).getAsJsonObject().addProperty("strength", Double.NaN)
         );
         for (var mutation : mutations) {
             var json = original.deepCopy();
@@ -163,4 +165,26 @@ class SpellCodecsTest {
             } finally { buffer.release(); }
         }
     }
+    @Test void roundTripPersistsOnlyDiscoveryExpressionAndMaterialIdentity() {
+        var material = new MaterialProfile(new MaterialId("test:blaze"), List.of(
+            new FormParticipation(Forms.HEAT, 1), new FormParticipation(Forms.MOTION, 0.5)));
+        var heat = new FormExpression(List.of(new FormParticipation(Forms.HEAT, 0.7)));
+        var node = new WorkingNode(new NodeId("source"), new GridPoint(0, 0), material, heat);
+        var pattern = new WorkingAnalyzer().analyze(new ArcaneWorking(List.of(node), List.of(), List.of())).pattern().orElseThrow();
+        var original = new RecordedSpell(1, "Selected Heat", new SpellCompiler().compile(pattern));
+        var json = encode(original);
+        var locus = json.getAsJsonObject("program").getAsJsonObject("structure").getAsJsonArray("loci").get(0).getAsJsonObject();
+        assertEquals(Set.of("id", "role", "material", "expressed_forms"), locus.keySet());
+        assertEquals("test:blaze", locus.get("material").getAsString());
+        assertEquals(1, locus.getAsJsonArray("expressed_forms").size());
+        assertFalse(json.toString().contains("spellcraft:motion"));
+        var decoded = SpellCodecs.RECORDED.parse(JsonOps.INSTANCE, json).getOrThrow();
+        assertEquals(original, decoded);
+        assertEquals(heat, decoded.program().structure().single(LocusRole.FOCUS).expressedForms());
+        assertEquals(heat.terms(), decoded.program().invokedForms());
+        // The old field is not accepted as an expression, even with a current version tag.
+        locus.add("forms", locus.remove("expressed_forms"));
+        assertTrue(SpellCodecs.RECORDED.parse(JsonOps.INSTANCE, json).error().isPresent());
+    }
+
 }

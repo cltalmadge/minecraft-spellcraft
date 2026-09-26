@@ -1,6 +1,5 @@
 package dev.spellcraft.domain.working;
 
-import dev.spellcraft.domain.form.FormExpression;
 import dev.spellcraft.domain.pattern.*;
 import java.math.BigInteger;
 import java.util.*;
@@ -19,7 +18,7 @@ public final class WorkingAnalyzer {
         if (recognized.isEmpty()) return new AnalysisResult(Optional.empty(), List.of(new WorkingDiagnostic(AMBIGUOUS_STRUCTURE)));
         var motif = recognized.get();
         var loci = working.nodes().stream().map(n -> new SpellLocus(new LocusId(n.id().value()), motif.roles().get(n.id()),
-            n.material().material(), new FormExpression(n.material().forms().stream().filter(f -> f.strength() > 0).toList()))).toList();
+            n.material().material(), n.expressedForms())).toList();
         var relations = working.strokes().stream()
             .map(e -> new LocusRelation(new LocusId(e.from().value()), new LocusId(e.to().value()))).toList();
         boolean enclosed = !working.boundaries().isEmpty();
@@ -53,7 +52,7 @@ public final class WorkingAnalyzer {
             if (!ids.containsAll(boundary.enclosed())) return issue(INCOMPLETE_RELATION);
             if (!new HashSet<>(boundary.enclosed()).equals(ids)) return issue(AMBIGUOUS_STRUCTURE);
         }
-        if (working.nodes().stream().noneMatch(n -> n.material().active())) return issue(NO_ACTIVE_FORM);
+        if (working.nodes().stream().noneMatch(n -> !n.expressedForms().terms().isEmpty())) return issue(NO_ACTIVE_FORM);
         var reached = new HashSet<NodeId>();
         reached.add(working.nodes().getFirst().id());
         boolean changed;
@@ -108,12 +107,12 @@ public final class WorkingAnalyzer {
         var middle = center.get();
         var arms = nodes.stream().filter(n -> !n.equals(middle)).toList();
         var roles = new HashMap<NodeId, LocusRole>();
-        if (middle.material().active() && arms.stream().noneMatch(n -> n.material().active())) {
+        if (!middle.expressedForms().terms().isEmpty() && arms.stream().noneMatch(n -> !n.expressedForms().terms().isEmpty())) {
             roles.put(middle.id(), LocusRole.FOCUS);
             arms.forEach(n -> roles.put(n.id(), LocusRole.ANCHOR));
             return Optional.of(new RecognizedStructure(NumericalPrinciple.MONAD, new Geometry.Radial(outward), Map.copyOf(roles)));
         }
-        if (!middle.material().active()) {
+        if (middle.expressedForms().terms().isEmpty()) {
             roles.put(middle.id(), LocusRole.ANCHOR);
             arms.forEach(n -> roles.put(n.id(), LocusRole.STABILIZER));
             return Optional.of(new RecognizedStructure(NumericalPrinciple.TETRAD, new Geometry.Intersection(), Map.copyOf(roles)));

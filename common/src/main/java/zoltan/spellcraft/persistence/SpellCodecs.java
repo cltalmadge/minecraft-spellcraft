@@ -50,14 +50,14 @@ public final class SpellCodecs {
         case FOCUS -> "focus"; case SOURCE -> "source"; case RECIPIENT -> "recipient";
         case MEDIATOR -> "mediator"; case ANCHOR -> "anchor"; case STABILIZER -> "stabilizer";
     });
-    private record LocusFields(LocusId id, LocusRole role, MaterialId material, FormExpression forms) {}
+    private record LocusFields(LocusId id, LocusRole role, MaterialId material, FormExpression expressedForms) {}
     private static final Codec<SpellLocus> LOCUS = RecordCodecBuilder.<LocusFields>create(i -> i.group(
         LOCUS_ID.fieldOf("id").forGetter(LocusFields::id),
         ROLE.fieldOf("role").forGetter(LocusFields::role),
         MATERIAL.fieldOf("material").forGetter(LocusFields::material),
-        EXPRESSION.fieldOf("forms").forGetter(LocusFields::forms)
-    ).apply(i, LocusFields::new)).comapFlatMap(f -> validated(() -> new SpellLocus(f.id(), f.role(), f.material(), f.forms())),
-        l -> new LocusFields(l.id(), l.role(), l.material(), l.forms()));
+        EXPRESSION.fieldOf("expressed_forms").forGetter(LocusFields::expressedForms)
+    ).apply(i, LocusFields::new)).comapFlatMap(f -> validated(() -> new SpellLocus(f.id(), f.role(), f.material(), f.expressedForms())),
+        l -> new LocusFields(l.id(), l.role(), l.material(), l.expressedForms()));
     private record RelationFields(LocusId from, LocusId to) {}
     private static final Codec<LocusRelation> RELATION = RecordCodecBuilder.<RelationFields>create(i -> i.group(
         LOCUS_ID.fieldOf("from").forGetter(RelationFields::from),

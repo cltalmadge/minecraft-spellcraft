@@ -3,7 +3,7 @@ package dev.spellcraft.domain.form;
 import java.util.Comparator;
 import java.util.List;
 
-/** Forms expressed by one locus. Empty means a participant without active Forms. */
+/** Forms contributed by one working node or semantic locus. Empty means no contribution. */
 public record FormExpression(List<FormParticipation> terms) {
     public FormExpression {
         terms = terms.stream()

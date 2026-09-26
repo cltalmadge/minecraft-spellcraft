@@ -7,6 +7,7 @@ import java.util.Objects;
 import dev.spellcraft.domain.form.FormId;
 import dev.spellcraft.domain.form.FormParticipation;
 
+/** Intrinsic potential: what a material could contribute, not what a working expresses. */
 public record MaterialProfile(MaterialId material, List<FormParticipation> forms) {
     public MaterialProfile {
         Objects.requireNonNull(material);

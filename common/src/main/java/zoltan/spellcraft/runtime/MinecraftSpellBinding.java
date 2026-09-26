@@ -13,7 +13,9 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-/** SOURCE/FOCUS bind to the caster; RECIPIENT binds to the ray target. Anchors remain geometric. */
+/** SOURCE/FOCUS bind to the caster; RECIPIENT binds to the ray target. Anchors remain geometric.
+ * Locus materials record discovery participants; a concrete target need not be that material.
+ */
 public record MinecraftSpellBinding(SpellLocus originLocus, Optional<SpellLocus> recipientLocus,
                                     Vec3 origin, Vec3 aim, List<LivingEntity> targets) {
     public MinecraftSpellBinding { targets = List.copyOf(targets); }

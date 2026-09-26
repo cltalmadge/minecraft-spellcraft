@@ -15,7 +15,7 @@ public record SpellStructure(List<SpellLocus> loci, List<LocusRelation> relation
         for (var locus : loci) {
             if (!ids.add(locus.id())) throw new IllegalArgumentException("Duplicate locus id");
         }
-        if (loci.isEmpty() || loci.stream().allMatch(l -> l.forms().terms().isEmpty()))
+        if (loci.isEmpty() || loci.stream().allMatch(l -> l.expressedForms().terms().isEmpty()))
             throw new IllegalArgumentException("No active Form");
         if (new HashSet<>(relations).size() != relations.size()) throw new IllegalArgumentException("Duplicate relation");
         for (var relation : relations) {
@@ -42,7 +42,7 @@ public record SpellStructure(List<SpellLocus> loci, List<LocusRelation> relation
         switch (operation) {
             case CONCENTRATE -> {
                 var focus = single(LocusRole.FOCUS);
-                if (focus.forms().terms().isEmpty()) throw new IllegalArgumentException("Inactive focus");
+                if (focus.expressedForms().terms().isEmpty()) throw new IllegalArgumentException("Inactive focus");
                 if (topology instanceof Geometry.Point) {
                     require(loci.size() == 1 && relations.isEmpty(), "Point needs one focus");
                 } else if (topology instanceof Geometry.Radial radial) {
@@ -75,8 +75,8 @@ public record SpellStructure(List<SpellLocus> loci, List<LocusRelation> relation
 
     public boolean hasEquivalentStabilizers() {
         var stabilizers = withRole(LocusRole.STABILIZER);
-        return stabilizers.size() == 4 && !stabilizers.getFirst().forms().terms().isEmpty()
-            && stabilizers.stream().allMatch(l -> l.forms().equals(stabilizers.getFirst().forms()));
+        return stabilizers.size() == 4 && !stabilizers.getFirst().expressedForms().terms().isEmpty()
+            && stabilizers.stream().allMatch(l -> l.expressedForms().equals(stabilizers.getFirst().expressedForms()));
     }
 
     private void validateSpokes(SpellLocus center, boolean outward) {

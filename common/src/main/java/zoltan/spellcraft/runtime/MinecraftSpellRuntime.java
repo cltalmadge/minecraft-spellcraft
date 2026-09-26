@@ -19,14 +19,15 @@ public final class MinecraftSpellRuntime {
     public ManifestationResult execute(SpellProgram program, MinecraftSpellContext context) {
         var caster = context.caster();
         if (!caster.isAlive() || caster.isSpectator() || caster.level() != context.level()) return new ManifestationResult(INVALID_CASTER, 0);
-        if (program.participatingForms().stream().anyMatch(f -> !handlers.containsKey(f.form()))) return new ManifestationResult(UNSUPPORTED_FORM, 0);
         // Mediation and fixed fields are representable, but need temporal world state before execution.
         if (program.operation() == MagicalOperation.MEDIATE || program.operation() == MagicalOperation.STABILIZE ||
                 program.geometry() instanceof Geometry.Enclosure || program.geometry() instanceof Geometry.Intersection)
             return new ManifestationResult(UNSUPPORTED_OPERATION, 0);
-        var binding = MinecraftSpellBinding.resolve(program, context);
-        var forms = binding.originLocus().forms().terms();
+        var forms = program.invokedForms();
         if (forms.isEmpty()) return new ManifestationResult(NO_SOURCE_FORM, 0);
+        // Preflight every invoked Form before any world mutation. Structural Forms need no handler.
+        if (forms.stream().anyMatch(f -> !handlers.containsKey(f.form()))) return new ManifestationResult(UNSUPPORTED_FORM, 0);
+        var binding = MinecraftSpellBinding.resolve(program, context);
         var targets = binding.targets();
         int applications = 0;
         for (var target : targets) {

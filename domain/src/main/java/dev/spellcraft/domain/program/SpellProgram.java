@@ -9,10 +9,10 @@ import dev.spellcraft.domain.pattern.LocusRole;
 import dev.spellcraft.domain.pattern.MagicalOperation;
 import dev.spellcraft.domain.pattern.SpellStructure;
 
-/** Version 2 binds operations to declared loci and directed relations. */
+/** Version 3 preserves explicit discovery-time Form expressions on declared loci. */
 public record SpellProgram(int schemaVersion, SpellStructure structure, List<SpellInstruction> instructions) {
 
-    public static final int CURRENT_SCHEMA_VERSION = 2;
+    public static final int CURRENT_SCHEMA_VERSION = 3;
     public SpellProgram {
         if (schemaVersion != CURRENT_SCHEMA_VERSION){ throw new IllegalArgumentException("Unsupported program schema"); }
         Objects.requireNonNull(structure);
@@ -32,16 +32,17 @@ public record SpellProgram(int schemaVersion, SpellStructure structure, List<Spe
     public MagicalOperation operation() { return ((SpellInstruction.Operate) instructions.get(0)).operation(); }
     public Geometry geometry() { return ((SpellInstruction.Shape) instructions.get(1)).geometry(); }
 
-    /** All participant contributions, for compatibility and preflight checks; no aggregation. */
+    /** Every Form semantically present anywhere in the pattern, without aggregation.
+     * Structural accounting only; manifestation preflight and basic affinity use invokedForms(). */
     public List<FormParticipation> participatingForms() {
-        return structure.loci().stream().flatMap(l -> l.forms().terms().stream()).toList();
+        return structure.loci().stream().flatMap(l -> l.expressedForms().terms().stream()).toList();
     }
 
     /** Only the bound source/focus supplies the released influence in the current runtime. */
     public List<FormParticipation> invokedForms() {
         return switch (operation()) {
-            case CONCENTRATE -> structure.single(LocusRole.FOCUS).forms().terms();
-            case TRANSFER, MEDIATE -> structure.single(LocusRole.SOURCE).forms().terms();
+            case CONCENTRATE -> structure.single(LocusRole.FOCUS).expressedForms().terms();
+            case TRANSFER, MEDIATE -> structure.single(LocusRole.SOURCE).expressedForms().terms();
             case STABILIZE -> List.of(); // Temporal manifestation remains unsupported.
         };
     }

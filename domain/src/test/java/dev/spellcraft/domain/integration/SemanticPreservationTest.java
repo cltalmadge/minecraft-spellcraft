@@ -17,7 +17,7 @@ class SemanticPreservationTest {
     private final SpellCompiler compiler = new SpellCompiler();
 
     private WorkingNode node(String id, int x, int y, String material, FormId... forms) {
-        return new WorkingNode(new NodeId(id), new GridPoint(x, y), new MaterialProfile(new MaterialId("test:" + material),
+        return WorkingNode.expressingAll(new NodeId(id), new GridPoint(x, y), new MaterialProfile(new MaterialId("test:" + material),
             Arrays.stream(forms).map(f -> new FormParticipation(f, 1)).toList()));
     }
 
@@ -63,7 +63,7 @@ class SemanticPreservationTest {
         var nodes = List.of(node("a", 0, 0, "blaze", Forms.HEAT), node("b", 1, 0, "iron"));
         var forward = program(new ArcaneWorking(nodes, List.of(edge("a", "b")), List.of()));
         var reverse = program(new ArcaneWorking(nodes, List.of(edge("b", "a")), List.of()));
-        assertTrue(forward.structure().single(LocusRole.RECIPIENT).forms().terms().isEmpty());
+        assertTrue(forward.structure().single(LocusRole.RECIPIENT).expressedForms().terms().isEmpty());
         assertFalse(forward.invokedForms().isEmpty());
         assertTrue(reverse.invokedForms().isEmpty());
         assertNotEquals(forward, reverse);
@@ -75,10 +75,11 @@ class SemanticPreservationTest {
         var program = compiler.compile(p);
         assertEquals(p.structure(), program.structure());
         assertEquals(NumericalPrinciple.TRIAD, p.principle());
-        assertEquals(List.of(new FormParticipation(Forms.HEAT, 1)), program.structure().single(LocusRole.SOURCE).forms().terms());
-        assertEquals(List.of(new FormParticipation(Forms.MOTION, 1)), program.structure().single(LocusRole.MEDIATOR).forms().terms());
+        assertEquals(List.of(new FormParticipation(Forms.HEAT, 1)), program.invokedForms());
+        assertEquals(List.of(new FormParticipation(Forms.HEAT, 1)), program.structure().single(LocusRole.SOURCE).expressedForms().terms());
+        assertEquals(List.of(new FormParticipation(Forms.MOTION, 1)), program.structure().single(LocusRole.MEDIATOR).expressedForms().terms());
         assertEquals(new MaterialId("test:copper"), program.structure().single(LocusRole.MEDIATOR).material());
-        assertTrue(program.structure().single(LocusRole.RECIPIENT).forms().terms().isEmpty());
+        assertTrue(program.structure().single(LocusRole.RECIPIENT).expressedForms().terms().isEmpty());
         assertEquals(List.of(new LocusRelation(new LocusId("a"), new LocusId("b")),
             new LocusRelation(new LocusId("b"), new LocusId("c"))), program.structure().relations());
         assertNotEquals(program, program(triad("copper", Forms.HEAT)));
@@ -88,11 +89,12 @@ class SemanticPreservationTest {
     @Test void tetradPreservesInactiveCenterAndEachStabilizer() {
         var p = pattern(tetrad(false));
         assertTrue(p.stabilized());
-        assertTrue(p.structure().single(LocusRole.ANCHOR).forms().terms().isEmpty());
+        assertTrue(compiler.compile(p).invokedForms().isEmpty());
+        assertTrue(p.structure().single(LocusRole.ANCHOR).expressedForms().terms().isEmpty());
         assertEquals(new LocusId("x"), p.structure().single(LocusRole.ANCHOR).id());
         assertEquals(4, p.structure().withRole(LocusRole.STABILIZER).size());
         for (var locus : p.structure().withRole(LocusRole.STABILIZER))
-            assertEquals(List.of(new FormParticipation(Forms.HEAT, 1)), locus.forms().terms());
+            assertEquals(List.of(new FormParticipation(Forms.HEAT, 1)), locus.expressedForms().terms());
         assertEquals(p.structure(), compiler.compile(p).structure());
         assertEquals(List.of(new WorkingDiagnostic(COHERENT)), analyzer.analyze(tetrad(false)).diagnostics());
         assertInstanceOf(SpellInstruction.Sustain.class, compiler.compile(p).instructions().getLast());
@@ -146,23 +148,48 @@ class SemanticPreservationTest {
     @Test void programRejectsIncoherentRolesDirectionsAndMissingMediator() {
         var p = program(dyad(false));
         var reversedEdges = new SpellStructure(p.structure().loci(), List.of(new LocusRelation(new LocusId("b"), new LocusId("a"))));
-        assertThrows(IllegalArgumentException.class, () -> new SpellProgram(2, reversedEdges, p.instructions()));
-        var roles = p.structure().loci().stream().map(l -> new SpellLocus(l.id(), LocusRole.SOURCE, l.material(), l.forms())).toList();
-        assertThrows(IllegalArgumentException.class, () -> new SpellProgram(2, new SpellStructure(roles, p.structure().relations()), p.instructions()));
+        assertThrows(IllegalArgumentException.class, () -> new SpellProgram(SpellProgram.CURRENT_SCHEMA_VERSION, reversedEdges, p.instructions()));
+        var roles = p.structure().loci().stream().map(l -> new SpellLocus(l.id(), LocusRole.SOURCE, l.material(), l.expressedForms())).toList();
+        assertThrows(IllegalArgumentException.class, () -> new SpellProgram(SpellProgram.CURRENT_SCHEMA_VERSION, new SpellStructure(roles, p.structure().relations()), p.instructions()));
         var mediate = List.<SpellInstruction>of(new SpellInstruction.Operate(MagicalOperation.MEDIATE), new SpellInstruction.Shape(new Geometry.Line()), new SpellInstruction.Release());
-        assertThrows(IllegalArgumentException.class, () -> new SpellProgram(2, p.structure(), mediate));
+        assertThrows(IllegalArgumentException.class, () -> new SpellProgram(SpellProgram.CURRENT_SCHEMA_VERSION, p.structure(), mediate));
     }
 
     @Test void programRejectsInvalidStabilizationAndForgedSustain() {
         var fixed = program(tetrad(false));
         var relations = new ArrayList<>(fixed.structure().relations());
         relations.set(0, new LocusRelation(new LocusId("a"), new LocusId("b")));
-        assertThrows(IllegalArgumentException.class, () -> new SpellProgram(2, new SpellStructure(fixed.structure().loci(), relations), fixed.instructions()));
+        assertThrows(IllegalArgumentException.class, () -> new SpellProgram(SpellProgram.CURRENT_SCHEMA_VERSION, new SpellStructure(fixed.structure().loci(), relations), fixed.instructions()));
         var unstable = program(tetrad(true));
-        assertThrows(IllegalArgumentException.class, () -> new SpellProgram(2, unstable.structure(), fixed.instructions()));
+        assertThrows(IllegalArgumentException.class, () -> new SpellProgram(SpellProgram.CURRENT_SCHEMA_VERSION, unstable.structure(), fixed.instructions()));
         var p = program(dyad(false));
         var sustain = List.<SpellInstruction>of(new SpellInstruction.Operate(MagicalOperation.TRANSFER),
             new SpellInstruction.Shape(new Geometry.Enclosure(new Geometry.Line())), new SpellInstruction.Sustain());
-        assertThrows(IllegalArgumentException.class, () -> new SpellProgram(2, p.structure(), sustain));
+        assertThrows(IllegalArgumentException.class, () -> new SpellProgram(SpellProgram.CURRENT_SCHEMA_VERSION, p.structure(), sustain));
     }
+    @Test void vesselAffinityFollowsInvokedSourceWhenDirectionReverses() {
+        var vessel = new dev.spellcraft.domain.vessel.VesselProfile(
+            new dev.spellcraft.domain.manifestation.SpellBurden(10, 10, 10), true, Set.of(Forms.HEAT));
+        var forward = program(dyad(false));
+        var reverse = program(dyad(true));
+        assertTrue(vessel.evaluate(forward, new BurdenModel().calculate(forward)).viable());
+        assertEquals(List.of(dev.spellcraft.domain.vessel.ContainmentReport.Issue.FORM),
+            vessel.evaluate(reverse, new BurdenModel().calculate(reverse)).issues());
+    }
+
+    @Test void burdenIsFiniteForInactiveSourceAndStructuralOnlyStabilizers() {
+        var nodes = List.of(node("a", 0, 0, "empty"), node("b", 1, 0, "blaze", Forms.HEAT));
+        var inactiveSource = program(new ArcaneWorking(nodes, List.of(edge("a", "b")), List.of()));
+        for (var p : List.of(inactiveSource, program(tetrad(false)), program(tetrad(true)))) {
+            assertTrue(p.invokedForms().isEmpty());
+            var burden = new BurdenModel().calculate(p);
+            assertEquals(1, burden.intensity());
+            assertTrue(Double.isFinite(burden.complexity()));
+            assertTrue(Double.isFinite(burden.persistence()));
+        }
+        assertThrows(IllegalArgumentException.class, () -> new SpellStructure(List.of(
+            new SpellLocus(new LocusId("empty"), LocusRole.FOCUS, new MaterialId("test:empty"),
+                new FormExpression(List.of()))), List.of()));
+    }
+
 }

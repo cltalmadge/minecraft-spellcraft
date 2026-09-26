@@ -20,7 +20,7 @@ class SpellcraftPipelineTest {
     private MaterialProfile material(FormId form) {
         return new MaterialProfile(new MaterialId("test:material"), form == null ? List.of() : List.of(new FormParticipation(form, 1)));
     }
-    private WorkingNode node(String id, int x, int y, FormId form) { return new WorkingNode(new NodeId(id), new GridPoint(x, y), material(form)); }
+    private WorkingNode node(String id, int x, int y, FormId form) { return WorkingNode.expressingAll(new NodeId(id), new GridPoint(x, y), material(form)); }
     private WorkingStroke edge(String a, String b) { return new WorkingStroke(new NodeId(a), new NodeId(b)); }
     private ArcaneWorking line(FormId form) {
         return new ArcaneWorking(List.of(node("a", 0, 0, form), node("b", 2, 0, form)), List.of(edge("a", "b")), List.of());
@@ -136,7 +136,7 @@ class SpellcraftPipelineTest {
     }
     @Test void mixturesAtOneLocusPreserveBothForms() {
         var mixture = List.of(new FormParticipation(Forms.HEAT, 1), new FormParticipation(Forms.MOTION, 0.5));
-        var focus = new WorkingNode(new NodeId("a"), new GridPoint(0, 0), new MaterialProfile(new MaterialId("test:mixture"), mixture));
+        var focus = WorkingNode.expressingAll(new NodeId("a"), new GridPoint(0, 0), new MaterialProfile(new MaterialId("test:mixture"), mixture));
         var w = new ArcaneWorking(List.of(focus), List.of(), List.of());
         assertEquals(mixture, program(w).invokedForms());
     }
@@ -149,15 +149,15 @@ class SpellcraftPipelineTest {
         assertEquals(program(w), program(other)); assertEquals(program(w).hashCode(), program(other).hashCode());
     }
     @Test void programsValidateVersionGrammarAndImmutability() {
-        var p = program(line(Forms.HEAT)); assertEquals(2, p.schemaVersion());
+        var p = program(line(Forms.HEAT)); assertEquals(3, p.schemaVersion());
         assertInstanceOf(SpellInstruction.Operate.class, p.instructions().get(0));
         assertInstanceOf(SpellInstruction.Shape.class, p.instructions().get(1));
-        var mutable = new ArrayList<>(p.instructions()); var copy = new SpellProgram(2, p.structure(), mutable); mutable.clear(); assertEquals(p, copy);
+        var mutable = new ArrayList<>(p.instructions()); var copy = new SpellProgram(SpellProgram.CURRENT_SCHEMA_VERSION, p.structure(), mutable); mutable.clear(); assertEquals(p, copy);
         assertThrows(UnsupportedOperationException.class, () -> p.instructions().clear());
         assertThrows(IllegalArgumentException.class, () -> new SpellProgram(1, p.structure(), p.instructions()));
-        assertThrows(IllegalArgumentException.class, () -> new SpellProgram(2, p.structure(), List.of(new SpellInstruction.Release())));
+        assertThrows(IllegalArgumentException.class, () -> new SpellProgram(SpellProgram.CURRENT_SCHEMA_VERSION, p.structure(), List.of(new SpellInstruction.Release())));
         var wrong = new ArrayList<>(p.instructions()); wrong.set(2, new SpellInstruction.Sustain());
-        assertThrows(IllegalArgumentException.class, () -> new SpellProgram(2, p.structure(), wrong));
+        assertThrows(IllegalArgumentException.class, () -> new SpellProgram(SpellProgram.CURRENT_SCHEMA_VERSION, p.structure(), wrong));
         assertThrows(IllegalArgumentException.class, () -> new RecordedSpell(2, "x", p));
         assertThrows(IllegalArgumentException.class, () -> new RecordedSpell(1, "", p));
     }

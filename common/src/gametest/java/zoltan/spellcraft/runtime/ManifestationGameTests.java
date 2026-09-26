@@ -73,21 +73,19 @@ public final class ManifestationGameTests {
                 var context = new MinecraftSpellContext(h.getLevel(), player);
                 h.assertValueEqual(runtime.execute(unknown, context).status(), ManifestationResult.Status.UNSUPPORTED_FORM, "unknown Form");
                 h.assertTrue(!player.isOnFire(), "Known forms must not execute before rejecting unknown ones");
-                var fixed = new SpellCompiler().compile(centered(new FormExpression(List.of(new FormParticipation(Forms.HEAT, 1))),
+                var fixed = new SpellCompiler().compile(centered(new FormExpression(List.of(new FormParticipation(new FormId("test:unknown"), 1))),
                     NumericalPrinciple.TETRAD, new Geometry.Enclosure(new Geometry.Intersection())));
                 h.assertValueEqual(runtime.execute(fixed, context).status(), ManifestationResult.Status.UNSUPPORTED_OPERATION, "sustained structure");
                 h.assertTrue(!player.isOnFire(), "Sustain must not become a one-shot cast");
                 var dyad = directed(false, Forms.MOTION);
                 var enclosed = new SpellCompiler().compile(new SpellPattern(dyad.structure(), NumericalPrinciple.DYAD,
                     new Geometry.Enclosure(new Geometry.Line())));
-                h.assertValueEqual(runtime.execute(enclosed, context).status(), ManifestationResult.Status.UNSUPPORTED_FORM, "all Forms preflight");
+                h.assertValueEqual(runtime.execute(enclosed, context).status(), ManifestationResult.Status.UNSUPPORTED_OPERATION, "enclosure remains unsupported");
                 var completeRuntime = new MinecraftSpellRuntime(List.of(new HeatManifestationHandler(), new MotionManifestationHandler()));
                 h.assertValueEqual(completeRuntime.execute(enclosed, context).status(), ManifestationResult.Status.UNSUPPORTED_OPERATION, "unstable containment");
-                h.assertValueEqual(completeRuntime.execute(directed(false, new FormId("test:unknown")), context).status(),
-                    ManifestationResult.Status.UNSUPPORTED_FORM, "unknown recipient Form also prevents partial execution");
                 var triad = new SpellStructure(List.of(
                     locus("a", LocusRole.SOURCE, "blaze", new FormExpression(List.of(new FormParticipation(Forms.HEAT, 1)))),
-                    locus("b", LocusRole.MEDIATOR, "copper", new FormExpression(List.of(new FormParticipation(Forms.MOTION, 1)))),
+                    locus("b", LocusRole.MEDIATOR, "copper", new FormExpression(List.of(new FormParticipation(new FormId("test:unknown"), 1)))),
                     locus("c", LocusRole.RECIPIENT, "iron", new FormExpression(List.of()))),
                     List.of(new LocusRelation(new LocusId("a"), new LocusId("b")), new LocusRelation(new LocusId("b"), new LocusId("c"))));
                 var mediated = new SpellCompiler().compile(new SpellPattern(triad, NumericalPrinciple.TRIAD, new Geometry.Line()));
@@ -121,6 +119,31 @@ public final class ManifestationGameTests {
                 h.assertValueEqual(runtime.execute(reverse, context).status(), ManifestationResult.Status.APPLIED, "reverse transfer");
                 h.assertTrue(motionTarget.getDeltaMovement().z > 0.5, "Reversed relation invokes source Motion");
                 h.assertTrue(!motionTarget.isOnFire(), "Recipient Heat is not invoked");
+                h.succeed();
+            },
+            "unknown_recipient_does_not_block_heat_and_unknown_source_rejects_atomically", h -> {
+                var player = h.makeMockPlayer(GameType.SURVIVAL);
+                player.setPos(h.absoluteVec(new Vec3(2.5, 1, 2.5))); player.setYRot(0); player.setXRot(0);
+                var target = h.spawnWithNoFreeWill(EntityTypes.HUSK, new Vec3(2.5, 1, 5.5));
+                var runtime = new MinecraftSpellRuntime(List.of(new HeatManifestationHandler()));
+                var context = new MinecraftSpellContext(h.getLevel(), player);
+                var mixed = new FormExpression(List.of(new FormParticipation(Forms.HEAT, 1),
+                    new FormParticipation(new FormId("test:unknown"), 1)));
+                var structure = new SpellStructure(List.of(locus("a", LocusRole.SOURCE, "blaze", mixed),
+                    locus("b", LocusRole.RECIPIENT, "iron", new FormExpression(List.of()))),
+                    List.of(new LocusRelation(new LocusId("a"), new LocusId("b"))));
+                var unsupported = new SpellCompiler().compile(new SpellPattern(structure, NumericalPrinciple.DYAD, new Geometry.Line()));
+                var rejected = runtime.execute(unsupported, context);
+                h.assertValueEqual(rejected.status(), ManifestationResult.Status.UNSUPPORTED_FORM, "unknown invoked source");
+                h.assertValueEqual(rejected.applications(), 0, "atomic rejection");
+                h.assertTrue(!target.isOnFire() && !player.isOnFire(), "No partial Heat application");
+                var applied = runtime.execute(directed(false, new FormId("test:unknown")), context);
+                h.assertValueEqual(applied.status(), ManifestationResult.Status.APPLIED, "unknown recipient needs no handler");
+                h.assertValueEqual(applied.applications(), 1, "only Heat invoked");
+                h.assertTrue(target.isOnFire(), "Heat reaches the concrete recipient");
+                player.setYRot(180);
+                h.assertValueEqual(runtime.execute(directed(false, new FormId("test:unknown")), context).status(),
+                    ManifestationResult.Status.NO_TARGET, "missing target is distinct from unsupported Form");
                 h.succeed();
             },
             "inactive_source_does_not_invoke_recipient_forms", h -> {
@@ -163,9 +186,9 @@ public final class ManifestationGameTests {
     }
 
     private static SpellProgram directed(boolean reverse, FormId... recipientForms) {
-        var source = new WorkingNode(new NodeId("a"), new GridPoint(0, 0),
+        var source = WorkingNode.expressingAll(new NodeId("a"), new GridPoint(0, 0),
             new MaterialProfile(new MaterialId("test:blaze"), List.of(new FormParticipation(Forms.HEAT, 1))));
-        var recipient = new WorkingNode(new NodeId("b"), new GridPoint(1, 0), new MaterialProfile(new MaterialId("test:iron"),
+        var recipient = WorkingNode.expressingAll(new NodeId("b"), new GridPoint(1, 0), new MaterialProfile(new MaterialId("test:iron"),
             Arrays.stream(recipientForms).map(f -> new FormParticipation(f, 1)).toList()));
         var stroke = reverse ? new WorkingStroke(recipient.id(), source.id()) : new WorkingStroke(source.id(), recipient.id());
         var pattern = new WorkingAnalyzer().analyze(new ArcaneWorking(List.of(source, recipient), List.of(stroke), List.of())).pattern().orElseThrow();

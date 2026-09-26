@@ -85,6 +85,18 @@ Use the same in-game commands above to obtain the items.
 
 Both loaders use the same domain and common code.
 
+## Form contributions
+
+`MaterialProfile` describes intrinsic potential. `WorkingNode.expressedForms` selects the contribution to an experiment, validated as a subset whose strengths cannot exceed the material's participation. `WorkingNode.expressingAll` is an explicit convenience for experiments that use every available Form.
+
+Analysis preserves those contributions and material identities in `SpellLocus.expressedForms`. Program schema v3 stores `expressed_forms`, without a full material profile or a later correspondence lookup. Older program schemas are rejected; the recording envelope remains v1. Changing material data cannot rewrite an already recorded spell.
+
+`SpellProgram.invokedForms()` selects the focus for concentration or the source for transfer/mediation; stabilization currently invokes nothing instantaneous. Runtime handler preflight and basic vessel affinity use only these invoked Forms. Recipient, mediator, and stabilizer expressions remain semantic information. Mediation and stabilization execution remain unsupported. A locus's material records its discovery participant; it does not currently restrict the concrete runtime target's material.
+
+`participatingForms()` includes all expressed contributions, across roles. Provisional burden retains that broader meaning: intensity averages total strength per contributing locus (zero if none), complexity counts distinct contributing Forms plus operation/topology, and persistence reflects enclosure. This is structural burden, not just manifested force.
+
+The future workbench's Form selection, mediator transformations, recipient compatibility/resonance, and persistent stabilizer behavior remain open gameplay questions.
+
 ## Run tests
 
 Run the domain and persistence tests without launching Minecraft:
