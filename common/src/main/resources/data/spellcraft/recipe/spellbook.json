@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " L ",
+    "GBG",
+    " A "
+  ],
+  "key": {
+    "L": "minecraft:lapis_lazuli",
+    "G": "minecraft:gold_nugget",
+    "B": "minecraft:book",
+    "A": "minecraft:amethyst_shard"
+  },
+  "result": {
+    "id": "spellcraft:spellbook",
+    "count": 1
+  }
+}
