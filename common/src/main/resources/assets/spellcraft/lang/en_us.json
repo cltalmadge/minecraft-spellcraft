@@ -1,3 +1,6 @@
 {
-  "item.spellcraft.spellbook": "Spellbook"
+  "item.spellcraft.spellbook": "Spellbook",
+  "screen.spellcraft.spellbook.title": "Spellbook",
+  "screen.spellcraft.spellbook.empty": "No spells learned yet.",
+  "screen.spellcraft.spellbook.close": "Close"
 }

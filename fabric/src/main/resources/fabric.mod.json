@@ -10,6 +10,9 @@
   "entrypoints": {
     "main": [
       "zoltan.spellcraft.runner.fabric.SpellcraftFabric"
+    ],
+    "client": [
+      "zoltan.spellcraft.runner.fabric.SpellcraftFabricClient"
     ]
   },
   "depends": {
