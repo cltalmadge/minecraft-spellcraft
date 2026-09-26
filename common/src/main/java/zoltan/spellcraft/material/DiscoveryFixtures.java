@@ -18,10 +18,12 @@ public final class DiscoveryFixtures {
     public static RecordedSpell directedHeat() { return directed(Items.BLAZE_POWDER, "Thermal transmission"); }
     public static RecordedSpell directedMotion() { return directed(Items.FEATHER, "Directed impulse"); }
     private static RecordedSpell directed(Item ingredient, String name) {
-        var material = MaterialProfileResolver.bootstrap().resolve(ingredient);
+        var resolver = MaterialProfileResolver.bootstrap();
+        var material = resolver.resolve(ingredient);
+        var recipient = resolver.resolve(Items.IRON_INGOT);
         var a = new NodeId("source"); var b = new NodeId("recipient");
         var working = new ArcaneWorking(List.of(new WorkingNode(a, new GridPoint(0, 0), material),
-            new WorkingNode(b, new GridPoint(2, 0), material)), List.of(new WorkingStroke(a, b)), List.of());
+            new WorkingNode(b, new GridPoint(2, 0), recipient)), List.of(new WorkingStroke(a, b)), List.of());
         var pattern = new WorkingAnalyzer().analyze(working).pattern().orElseThrow();
         return new RecordedSpell(RecordedSpell.CURRENT_SCHEMA_VERSION, name, new SpellCompiler().compile(pattern));
     }

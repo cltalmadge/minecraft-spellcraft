@@ -88,7 +88,10 @@ class SpellcraftPipelineTest {
     }
     @Test void differingArmsAreNotEquivalent() {
         var w = star(Forms.HEAT, true, true, true); var nodes = new ArrayList<>(w.nodes()); nodes.set(0, node("a", 0, 2, Forms.MOTION));
-        fails(new ArcaneWorking(nodes, w.strokes(), w.boundaries()), UNSTABLE_STRUCTURE);
+        var result = analyzer.analyze(new ArcaneWorking(nodes, w.strokes(), w.boundaries()));
+        assertTrue(result.pattern().isPresent());
+        assertFalse(result.pattern().orElseThrow().stabilized());
+        assertEquals(List.of(new WorkingDiagnostic(UNSTABLE_STRUCTURE)), result.diagnostics());
     }
     @Test void radialDirectionComesFromStrokes() {
         assertEquals(new Geometry.Radial(true), pattern(star(Forms.HEAT, false, false, true)).geometry());
@@ -115,21 +118,27 @@ class SpellcraftPipelineTest {
         var w = line(Forms.HEAT);
         fails(new ArcaneWorking(w.nodes(), w.strokes(), List.of(new WorkingBoundary(List.of(new NodeId("a"))))), AMBIGUOUS_STRUCTURE);
         fails(new ArcaneWorking(w.nodes(), w.strokes(), List.of(new WorkingBoundary(List.of(new NodeId("missing"))))), INCOMPLETE_RELATION);
-        fails(new ArcaneWorking(w.nodes(), w.strokes(), List.of(new WorkingBoundary(List.of(new NodeId("a"), new NodeId("b"))))), UNSTABLE_STRUCTURE);
+        var enclosed = analyzer.analyze(new ArcaneWorking(w.nodes(), w.strokes(), List.of(new WorkingBoundary(List.of(new NodeId("a"), new NodeId("b"))))));
+        assertTrue(enclosed.pattern().isPresent());
+        assertInstanceOf(Geometry.Enclosure.class, enclosed.pattern().orElseThrow().geometry());
+        assertEquals(List.of(new WorkingDiagnostic(UNSTABLE_STRUCTURE)), enclosed.diagnostics());
+        assertInstanceOf(SpellInstruction.Release.class, compiler.compile(enclosed.pattern().orElseThrow()).instructions().getLast());
         assertTrue(analyzer.analyze(w).diagnostics().contains(new WorkingDiagnostic(UNCONTAINED_INFLUENCE)));
     }
     @Test void fourProofCasesDifferThroughSharedSemantics() {
         var heat = program(line(Forms.HEAT)); var motion = program(line(Forms.MOTION));
         var radial = program(star(Forms.HEAT, false, false, true)); var contained = program(star(Forms.HEAT, true, true, false));
-        assertEquals(heat.instructions().subList(1, 4), motion.instructions().subList(1, 4));
-        assertNotEquals(heat.forms(), motion.forms()); assertEquals(heat.forms(), radial.forms());
+        assertEquals(heat.instructions(), motion.instructions());
+        assertNotEquals(heat.invokedForms(), motion.invokedForms()); assertEquals(heat.invokedForms(), radial.invokedForms());
         assertEquals(MagicalOperation.CONCENTRATE, radial.operation()); assertInstanceOf(Geometry.Radial.class, radial.geometry());
         assertEquals(MagicalOperation.STABILIZE, contained.operation()); assertInstanceOf(SpellInstruction.Sustain.class, contained.instructions().getLast());
         assertInstanceOf(SpellInstruction.Release.class, heat.instructions().getLast());
     }
-    @Test void mixturesPreserveBothForms() {
-        var w = new ArcaneWorking(List.of(node("a", 0, 0, Forms.HEAT), node("b", 1, 0, Forms.MOTION)), List.of(edge("a", "b")), List.of());
-        assertEquals(List.of(new FormParticipation(Forms.HEAT, 0.5), new FormParticipation(Forms.MOTION, 0.5)), program(w).forms());
+    @Test void mixturesAtOneLocusPreserveBothForms() {
+        var mixture = List.of(new FormParticipation(Forms.HEAT, 1), new FormParticipation(Forms.MOTION, 0.5));
+        var focus = new WorkingNode(new NodeId("a"), new GridPoint(0, 0), new MaterialProfile(new MaterialId("test:mixture"), mixture));
+        var w = new ArcaneWorking(List.of(focus), List.of(), List.of());
+        assertEquals(mixture, program(w).invokedForms());
     }
     @Test void analysisAndCompilationAreDeterministicAcrossInputOrder() {
         var w = star(Forms.HEAT, true, true, true);
@@ -140,16 +149,15 @@ class SpellcraftPipelineTest {
         assertEquals(program(w), program(other)); assertEquals(program(w).hashCode(), program(other).hashCode());
     }
     @Test void programsValidateVersionGrammarAndImmutability() {
-        var p = program(line(Forms.HEAT)); assertEquals(1, p.schemaVersion());
-        assertInstanceOf(SpellInstruction.Invoke.class, p.instructions().get(0));
-        assertInstanceOf(SpellInstruction.Operate.class, p.instructions().get(1));
-        assertInstanceOf(SpellInstruction.Shape.class, p.instructions().get(2));
-        var mutable = new ArrayList<>(p.instructions()); var copy = new SpellProgram(1, mutable); mutable.clear(); assertEquals(p, copy);
+        var p = program(line(Forms.HEAT)); assertEquals(2, p.schemaVersion());
+        assertInstanceOf(SpellInstruction.Operate.class, p.instructions().get(0));
+        assertInstanceOf(SpellInstruction.Shape.class, p.instructions().get(1));
+        var mutable = new ArrayList<>(p.instructions()); var copy = new SpellProgram(2, p.structure(), mutable); mutable.clear(); assertEquals(p, copy);
         assertThrows(UnsupportedOperationException.class, () -> p.instructions().clear());
-        assertThrows(IllegalArgumentException.class, () -> new SpellProgram(2, p.instructions()));
-        assertThrows(IllegalArgumentException.class, () -> new SpellProgram(1, List.of(new SpellInstruction.Release())));
-        var wrong = new ArrayList<>(p.instructions()); wrong.set(3, new SpellInstruction.Sustain());
-        assertThrows(IllegalArgumentException.class, () -> new SpellProgram(1, wrong));
+        assertThrows(IllegalArgumentException.class, () -> new SpellProgram(1, p.structure(), p.instructions()));
+        assertThrows(IllegalArgumentException.class, () -> new SpellProgram(2, p.structure(), List.of(new SpellInstruction.Release())));
+        var wrong = new ArrayList<>(p.instructions()); wrong.set(2, new SpellInstruction.Sustain());
+        assertThrows(IllegalArgumentException.class, () -> new SpellProgram(2, p.structure(), wrong));
         assertThrows(IllegalArgumentException.class, () -> new RecordedSpell(2, "x", p));
         assertThrows(IllegalArgumentException.class, () -> new RecordedSpell(1, "", p));
     }

@@ -18,7 +18,7 @@ public record VesselProfile(SpellBurden limits, boolean directional, Set<FormId>
         if (burden.complexity() > limits.complexity()) issues.add(ContainmentReport.Issue.COMPLEXITY);
         if (burden.persistence() > limits.persistence()) issues.add(ContainmentReport.Issue.PERSISTENCE);
         if (directional && !(program.geometry() instanceof Geometry.Point || program.geometry() instanceof Geometry.Line)) issues.add(ContainmentReport.Issue.GEOMETRY);
-        if (!affinities.isEmpty() && program.forms().stream().anyMatch(f -> !affinities.contains(f.form()))) issues.add(ContainmentReport.Issue.FORM);
+        if (!affinities.isEmpty() && program.participatingForms().stream().anyMatch(f -> !affinities.contains(f.form()))) issues.add(ContainmentReport.Issue.FORM);
         return new ContainmentReport(issues);
     }
 }

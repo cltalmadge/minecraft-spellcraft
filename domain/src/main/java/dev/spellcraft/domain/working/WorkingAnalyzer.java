@@ -1,125 +1,149 @@
 package dev.spellcraft.domain.working;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.TreeMap;
-
 import dev.spellcraft.domain.form.FormExpression;
-import dev.spellcraft.domain.form.FormId;
-import dev.spellcraft.domain.form.FormParticipation;
-import dev.spellcraft.domain.pattern.Geometry;
-import dev.spellcraft.domain.pattern.NumericalPrinciple;
-import dev.spellcraft.domain.pattern.SpellPattern;
+import dev.spellcraft.domain.pattern.*;
+import java.math.BigInteger;
+import java.util.*;
 
 import static dev.spellcraft.domain.working.WorkingDiagnostic.Kind.*;
 
-/** A deliberately small grammar, not number recognition by node count. */
+/** Recognizes a small physical grammar, then preserves its participants as semantic data. */
 public final class WorkingAnalyzer {
+    private record RecognizedStructure(NumericalPrinciple principle, Geometry geometry, Map<NodeId, LocusRole> roles) {}
+
     public AnalysisResult analyze(ArcaneWorking working) {
         Objects.requireNonNull(working);
-        var nodes = working.nodes();
-        if (nodes.isEmpty()) return failure(EMPTY_WORKING);
-        var byId = new HashMap<NodeId, WorkingNode>();
+        var invalid = validate(working);
+        if (invalid.isPresent()) return new AnalysisResult(Optional.empty(), List.of(invalid.get()));
+        var recognized = recognize(working);
+        if (recognized.isEmpty()) return new AnalysisResult(Optional.empty(), List.of(new WorkingDiagnostic(AMBIGUOUS_STRUCTURE)));
+        var motif = recognized.get();
+        var loci = working.nodes().stream().map(n -> new SpellLocus(new LocusId(n.id().value()), motif.roles().get(n.id()),
+            n.material().material(), new FormExpression(n.material().forms().stream().filter(f -> f.strength() > 0).toList()))).toList();
+        var relations = working.strokes().stream()
+            .map(e -> new LocusRelation(new LocusId(e.from().value()), new LocusId(e.to().value()))).toList();
+        boolean enclosed = !working.boundaries().isEmpty();
+        Geometry geometry = enclosed ? new Geometry.Enclosure(motif.geometry()) : motif.geometry();
+        var pattern = new SpellPattern(new SpellStructure(loci, relations), motif.principle(), geometry);
+        var diagnostics = new ArrayList<WorkingDiagnostic>();
+        if (!enclosed && pattern.principle() != NumericalPrinciple.MONAD) diagnostics.add(new WorkingDiagnostic(UNCONTAINED_INFLUENCE));
+        if ((enclosed || pattern.principle() == NumericalPrinciple.TETRAD) && !pattern.stabilized()) {
+            diagnostics.add(new WorkingDiagnostic(UNSTABLE_STRUCTURE));
+        } else {
+            diagnostics.add(new WorkingDiagnostic(COHERENT));
+        }
+        return new AnalysisResult(Optional.of(pattern), diagnostics);
+    }
+
+    private Optional<WorkingDiagnostic> validate(ArcaneWorking working) {
+        if (working.nodes().isEmpty()) return issue(EMPTY_WORKING);
+        var ids = new HashSet<NodeId>();
         var positions = new HashSet<GridPoint>();
-        for (var node : nodes) {
-            if (byId.put(node.id(), node) != null || !positions.add(node.position())) return failure(AMBIGUOUS_STRUCTURE, node.id());
+        for (var node : working.nodes()) {
+            if (!ids.add(node.id()) || !positions.add(node.position())) return issue(AMBIGUOUS_STRUCTURE, node.id());
         }
-        var edges = working.strokes();
-        if (new HashSet<>(edges).size() != edges.size()) return failure(AMBIGUOUS_STRUCTURE);
-        for (var edge : edges) {
-            if (!byId.containsKey(edge.from())) return failure(INCOMPLETE_RELATION, edge.from());
-            if (!byId.containsKey(edge.to())) return failure(INCOMPLETE_RELATION, edge.to());
-            if (edge.from().equals(edge.to())) return failure(INCOMPLETE_RELATION, edge.from());
+        if (new HashSet<>(working.strokes()).size() != working.strokes().size()) return issue(AMBIGUOUS_STRUCTURE);
+        for (var edge : working.strokes()) {
+            if (!ids.contains(edge.from())) return issue(INCOMPLETE_RELATION, edge.from());
+            if (!ids.contains(edge.to())) return issue(INCOMPLETE_RELATION, edge.to());
+            if (edge.from().equals(edge.to())) return issue(INCOMPLETE_RELATION, edge.from());
         }
-        if (working.boundaries().size() > 1) return failure(AMBIGUOUS_STRUCTURE);
+        if (working.boundaries().size() > 1) return issue(AMBIGUOUS_STRUCTURE);
         for (var boundary : working.boundaries()) {
-            if (!byId.keySet().containsAll(boundary.enclosed())) return failure(INCOMPLETE_RELATION);
-            if (!new HashSet<>(boundary.enclosed()).equals(byId.keySet())) return failure(AMBIGUOUS_STRUCTURE);
+            if (!ids.containsAll(boundary.enclosed())) return issue(INCOMPLETE_RELATION);
+            if (!new HashSet<>(boundary.enclosed()).equals(ids)) return issue(AMBIGUOUS_STRUCTURE);
         }
-        var active = nodes.stream().filter(n -> n.material().active()).toList();
-        if (active.isEmpty()) return failure(NO_ACTIVE_FORM);
+        if (working.nodes().stream().noneMatch(n -> n.material().active())) return issue(NO_ACTIVE_FORM);
         var reached = new HashSet<NodeId>();
-        reached.add(nodes.getFirst().id());
+        reached.add(working.nodes().getFirst().id());
         boolean changed;
         do {
             changed = false;
-            for (var e : edges) if (reached.contains(e.from()) || reached.contains(e.to())) {
-                changed |= reached.add(e.from()); changed |= reached.add(e.to());
+            for (var edge : working.strokes()) if (reached.contains(edge.from()) || reached.contains(edge.to())) {
+                changed |= reached.add(edge.from());
+                changed |= reached.add(edge.to());
             }
         } while (changed);
-        if (reached.size() != nodes.size()) return failure(INCOMPLETE_RELATION);
+        return reached.equals(ids) ? Optional.empty() : issue(INCOMPLETE_RELATION);
+    }
 
-        NumericalPrinciple number;
-        Geometry geometry;
+    private Optional<RecognizedStructure> recognize(ArcaneWorking working) {
+        var nodes = working.nodes();
+        var edges = working.strokes();
         if (nodes.size() == 1) {
-            number = NumericalPrinciple.MONAD; geometry = new Geometry.Point();
-        } else if (nodes.size() == 2 && edges.size() == 1 && active.size() == 2) {
-            number = NumericalPrinciple.DYAD; geometry = new Geometry.Line();
-        } else if (nodes.size() == 3 && edges.size() == 2 && active.size() == 3 && directedChain(edges)) {
-            var startEdge = edges.stream().filter(e -> edges.stream().noneMatch(other -> other.to().equals(e.from()))).findFirst().orElseThrow();
-            var endEdge = edges.stream().filter(e -> e.from().equals(startEdge.to())).findFirst().orElseThrow();
-            var a = byId.get(startEdge.from()).position();
-            var b = byId.get(startEdge.to()).position();
-            var c = byId.get(endEdge.to()).position();
-            // Limit to a straight, forward mediated relationship in this grammar.
-            var abx = java.math.BigInteger.valueOf((long)b.x() - a.x());
-            var aby = java.math.BigInteger.valueOf((long)b.y() - a.y());
-            var bcx = java.math.BigInteger.valueOf((long)c.x() - b.x());
-            var bcy = java.math.BigInteger.valueOf((long)c.y() - b.y());
-            if (!abx.multiply(bcy).equals(aby.multiply(bcx)) || abx.multiply(bcx).add(aby.multiply(bcy)).signum() <= 0)
-                return failure(AMBIGUOUS_STRUCTURE);
-            number = NumericalPrinciple.TRIAD; geometry = new Geometry.Line();
-        } else {
-            var center = nodes.stream().filter(n -> edges.size() == nodes.size() - 1 &&
-                edges.stream().allMatch(e -> e.from().equals(n.id()))).findFirst();
-            boolean outward = true;
-            if (center.isEmpty()) {
-                center = nodes.stream().filter(n -> edges.size() == nodes.size() - 1 &&
-                    edges.stream().allMatch(e -> e.to().equals(n.id()))).findFirst();
-                outward = false;
-            }
-            if (center.isEmpty() || nodes.size() != 5 || !symmetricArms(nodes, center.get())) return failure(AMBIGUOUS_STRUCTURE);
-            if (active.size() == 1 && active.getFirst().equals(center.get())) {
-                number = NumericalPrinciple.MONAD; geometry = new Geometry.Radial(outward);
-            } else if (active.size() == 4 && !center.get().material().active() &&
-                    active.stream().allMatch(n -> n.material().forms().equals(active.getFirst().material().forms()))) {
-                number = NumericalPrinciple.TETRAD; geometry = new Geometry.Intersection();
-            } else return failure(UNSTABLE_STRUCTURE);
+            return Optional.of(new RecognizedStructure(NumericalPrinciple.MONAD, new Geometry.Point(),
+                Map.of(nodes.getFirst().id(), LocusRole.FOCUS)));
         }
-        boolean enclosed = !working.boundaries().isEmpty();
-        if (enclosed && number != NumericalPrinciple.TETRAD) return failure(UNSTABLE_STRUCTURE);
-        if (enclosed) geometry = new Geometry.Enclosure(geometry);
-        var strengths = new TreeMap<String, Double>();
-        for (var node : active) for (var form : node.material().forms()) {
-            if (form.strength() > 0) strengths.merge(form.form().value(), form.strength() / active.size(), Double::sum);
+        if (nodes.size() == 2 && edges.size() == 1) {
+            var edge = edges.getFirst();
+            return Optional.of(new RecognizedStructure(NumericalPrinciple.DYAD, new Geometry.Line(),
+                Map.of(edge.from(), LocusRole.SOURCE, edge.to(), LocusRole.RECIPIENT)));
         }
-        var forms = new FormExpression(strengths.entrySet().stream()
-            .map(e -> new FormParticipation(new FormId(e.getKey()), Math.min(1, e.getValue()))).toList());
-        var diagnostics = new ArrayList<WorkingDiagnostic>();
-        if (!enclosed && number != NumericalPrinciple.MONAD) diagnostics.add(new WorkingDiagnostic(UNCONTAINED_INFLUENCE));
-        diagnostics.add(new WorkingDiagnostic(COHERENT));
-        return new AnalysisResult(Optional.of(new SpellPattern(forms, number, geometry)), diagnostics);
+        if (nodes.size() == 3 && edges.size() == 2) return recognizeChain(working);
+        if (nodes.size() == 5 && edges.size() == 4) return recognizeSpokes(working);
+        return Optional.empty();
     }
-    private boolean directedChain(List<WorkingStroke> edges) {
-        return edges.get(0).to().equals(edges.get(1).from()) || edges.get(1).to().equals(edges.get(0).from());
+
+    private Optional<RecognizedStructure> recognizeChain(ArcaneWorking working) {
+        var edges = working.strokes();
+        var start = edges.stream().filter(e -> edges.stream().noneMatch(other -> other.to().equals(e.from()))).findFirst();
+        if (start.isEmpty()) return Optional.empty();
+        var first = start.get();
+        var end = edges.stream().filter(e -> e.from().equals(first.to())).findFirst();
+        if (end.isEmpty()) return Optional.empty();
+        var byId = new HashMap<NodeId, GridPoint>();
+        working.nodes().forEach(n -> byId.put(n.id(), n.position()));
+        if (!straightForward(byId.get(first.from()), byId.get(first.to()), byId.get(end.get().to()))) return Optional.empty();
+        return Optional.of(new RecognizedStructure(NumericalPrinciple.TRIAD, new Geometry.Line(),
+            Map.of(first.from(), LocusRole.SOURCE, first.to(), LocusRole.MEDIATOR, end.get().to(), LocusRole.RECIPIENT)));
     }
+
+    private Optional<RecognizedStructure> recognizeSpokes(ArcaneWorking working) {
+        var nodes = working.nodes();
+        var edges = working.strokes();
+        var center = nodes.stream().filter(n -> edges.stream().allMatch(e -> e.from().equals(n.id()))).findFirst();
+        boolean outward = center.isPresent();
+        if (center.isEmpty()) center = nodes.stream().filter(n -> edges.stream().allMatch(e -> e.to().equals(n.id()))).findFirst();
+        if (center.isEmpty() || !symmetricArms(nodes, center.get())) return Optional.empty();
+        var middle = center.get();
+        var arms = nodes.stream().filter(n -> !n.equals(middle)).toList();
+        var roles = new HashMap<NodeId, LocusRole>();
+        if (middle.material().active() && arms.stream().noneMatch(n -> n.material().active())) {
+            roles.put(middle.id(), LocusRole.FOCUS);
+            arms.forEach(n -> roles.put(n.id(), LocusRole.ANCHOR));
+            return Optional.of(new RecognizedStructure(NumericalPrinciple.MONAD, new Geometry.Radial(outward), Map.copyOf(roles)));
+        }
+        if (!middle.material().active()) {
+            roles.put(middle.id(), LocusRole.ANCHOR);
+            arms.forEach(n -> roles.put(n.id(), LocusRole.STABILIZER));
+            return Optional.of(new RecognizedStructure(NumericalPrinciple.TETRAD, new Geometry.Intersection(), Map.copyOf(roles)));
+        }
+        return Optional.empty();
+    }
+
+    private boolean straightForward(GridPoint a, GridPoint b, GridPoint c) {
+        var abx = BigInteger.valueOf((long)b.x() - a.x());
+        var aby = BigInteger.valueOf((long)b.y() - a.y());
+        var bcx = BigInteger.valueOf((long)c.x() - b.x());
+        var bcy = BigInteger.valueOf((long)c.y() - b.y());
+        return abx.multiply(bcy).equals(aby.multiply(bcx)) && abx.multiply(bcx).add(aby.multiply(bcy)).signum() > 0;
+    }
+
     private boolean symmetricArms(List<WorkingNode> nodes, WorkingNode center) {
         long cx = center.position().x(), cy = center.position().y();
         var arms = nodes.stream().filter(n -> !n.equals(center)).toList();
-        long distance = Math.abs((long) arms.getFirst().position().x() - cx) + Math.abs((long) arms.getFirst().position().y() - cy);
+        long distance = Math.abs((long)arms.getFirst().position().x() - cx) + Math.abs((long)arms.getFirst().position().y() - cy);
         return arms.stream().allMatch(n -> {
             long dx = (long)n.position().x() - cx, dy = (long)n.position().y() - cy;
             return (dx == 0 || dy == 0) && Math.abs(dx) + Math.abs(dy) == distance;
         });
     }
-    private AnalysisResult failure(WorkingDiagnostic.Kind kind, NodeId node) {
-        return new AnalysisResult(Optional.empty(), List.of(new WorkingDiagnostic(kind, Optional.of(node), Optional.empty())));
+
+    private Optional<WorkingDiagnostic> issue(WorkingDiagnostic.Kind kind) {
+        return Optional.of(new WorkingDiagnostic(kind));
     }
-    private AnalysisResult failure(WorkingDiagnostic.Kind kind) {
-        return new AnalysisResult(Optional.empty(), List.of(new WorkingDiagnostic(kind)));
+
+    private Optional<WorkingDiagnostic> issue(WorkingDiagnostic.Kind kind, NodeId node) {
+        return Optional.of(new WorkingDiagnostic(kind, Optional.of(node), Optional.empty()));
     }
 }

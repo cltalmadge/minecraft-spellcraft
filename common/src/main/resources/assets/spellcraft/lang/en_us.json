@@ -7,6 +7,7 @@
   "item.spellcraft.spell_page": "Recorded Spell Page",
   "cast.spellcraft.applied": "Influence released.",
   "cast.spellcraft.no_target": "No recipient in reach.",
+  "cast.spellcraft.no_source_form": "The source contributes no active influence.",
   "cast.spellcraft.unsupported_form": "This Form has no manifestation path.",
   "cast.spellcraft.unsupported_operation": "This structure cannot yet manifest.",
   "cast.spellcraft.invalid_caster": "Cannot manifest here.",

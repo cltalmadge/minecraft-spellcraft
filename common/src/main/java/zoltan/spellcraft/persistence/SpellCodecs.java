@@ -4,9 +4,16 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import dev.spellcraft.domain.form.FormId;
+import dev.spellcraft.domain.form.FormExpression;
 import dev.spellcraft.domain.form.FormParticipation;
+import dev.spellcraft.domain.material.MaterialId;
 import dev.spellcraft.domain.pattern.Geometry;
+import dev.spellcraft.domain.pattern.LocusId;
+import dev.spellcraft.domain.pattern.LocusRelation;
+import dev.spellcraft.domain.pattern.LocusRole;
 import dev.spellcraft.domain.pattern.MagicalOperation;
+import dev.spellcraft.domain.pattern.SpellLocus;
+import dev.spellcraft.domain.pattern.SpellStructure;
 import dev.spellcraft.domain.program.RecordedSpell;
 import dev.spellcraft.domain.program.SpellInstruction;
 import dev.spellcraft.domain.program.SpellProgram;
@@ -21,12 +28,48 @@ public final class SpellCodecs {
         catch (IllegalArgumentException | NullPointerException e) { return DataResult.error(() -> e.getMessage() == null ? "Invalid spell value" : e.getMessage()); }
     }
     public static final Codec<FormId> FORM = Codec.STRING.comapFlatMap(s -> validated(() -> new FormId(s)), FormId::value);
+    private static final Codec<MaterialId> MATERIAL = Codec.STRING.comapFlatMap(s -> validated(() -> new MaterialId(s)), MaterialId::value);
+    private static final Codec<LocusId> LOCUS_ID = Codec.STRING.comapFlatMap(s -> validated(() -> new LocusId(s)), LocusId::value);
     private record ParticipationFields(FormId form, double strength) {}
     public static final Codec<FormParticipation> PARTICIPATION = RecordCodecBuilder.<ParticipationFields>create(i -> i.group(
         FORM.fieldOf("form").forGetter(ParticipationFields::form),
         Codec.DOUBLE.fieldOf("strength").forGetter(ParticipationFields::strength)
     ).apply(i, ParticipationFields::new)).comapFlatMap(f -> validated(() -> new FormParticipation(f.form(), f.strength())),
         f -> new ParticipationFields(f.form(), f.strength()));
+    private static final Codec<FormExpression> EXPRESSION = PARTICIPATION.listOf()
+        .comapFlatMap(terms -> validated(() -> new FormExpression(terms)), FormExpression::terms);
+    private static final Codec<LocusRole> ROLE = Codec.STRING.comapFlatMap(s -> switch (s) {
+        case "focus" -> DataResult.success(LocusRole.FOCUS);
+        case "source" -> DataResult.success(LocusRole.SOURCE);
+        case "recipient" -> DataResult.success(LocusRole.RECIPIENT);
+        case "mediator" -> DataResult.success(LocusRole.MEDIATOR);
+        case "anchor" -> DataResult.success(LocusRole.ANCHOR);
+        case "stabilizer" -> DataResult.success(LocusRole.STABILIZER);
+        default -> DataResult.error(() -> "Unknown locus role: " + s);
+    }, role -> switch (role) {
+        case FOCUS -> "focus"; case SOURCE -> "source"; case RECIPIENT -> "recipient";
+        case MEDIATOR -> "mediator"; case ANCHOR -> "anchor"; case STABILIZER -> "stabilizer";
+    });
+    private record LocusFields(LocusId id, LocusRole role, MaterialId material, FormExpression forms) {}
+    private static final Codec<SpellLocus> LOCUS = RecordCodecBuilder.<LocusFields>create(i -> i.group(
+        LOCUS_ID.fieldOf("id").forGetter(LocusFields::id),
+        ROLE.fieldOf("role").forGetter(LocusFields::role),
+        MATERIAL.fieldOf("material").forGetter(LocusFields::material),
+        EXPRESSION.fieldOf("forms").forGetter(LocusFields::forms)
+    ).apply(i, LocusFields::new)).comapFlatMap(f -> validated(() -> new SpellLocus(f.id(), f.role(), f.material(), f.forms())),
+        l -> new LocusFields(l.id(), l.role(), l.material(), l.forms()));
+    private record RelationFields(LocusId from, LocusId to) {}
+    private static final Codec<LocusRelation> RELATION = RecordCodecBuilder.<RelationFields>create(i -> i.group(
+        LOCUS_ID.fieldOf("from").forGetter(RelationFields::from),
+        LOCUS_ID.fieldOf("to").forGetter(RelationFields::to)
+    ).apply(i, RelationFields::new)).comapFlatMap(f -> validated(() -> new LocusRelation(f.from(), f.to())),
+        r -> new RelationFields(r.from(), r.to()));
+    private record StructureFields(List<SpellLocus> loci, List<LocusRelation> relations) {}
+    private static final Codec<SpellStructure> STRUCTURE = RecordCodecBuilder.<StructureFields>create(i -> i.group(
+        LOCUS.listOf(1, 5).fieldOf("loci").forGetter(StructureFields::loci),
+        RELATION.listOf(0, 4).fieldOf("relations").forGetter(StructureFields::relations)
+    ).apply(i, StructureFields::new)).comapFlatMap(f -> validated(() -> new SpellStructure(f.loci(), f.relations())),
+        s -> new StructureFields(s.loci(), s.relations()));
     public static final Codec<MagicalOperation> OPERATION = Codec.STRING.comapFlatMap(s -> switch (s) {
         case "concentrate" -> DataResult.success(MagicalOperation.CONCENTRATE);
         case "transfer" -> DataResult.success(MagicalOperation.TRANSFER);
@@ -58,13 +101,11 @@ public final class SpellCodecs {
     ).apply(i, GeometryFields::new)).xmap(f -> f.enclosed() ? new Geometry.Enclosure(f.interior()) : f.interior(),
         g -> g instanceof Geometry.Enclosure e ? new GeometryFields(e.interior(), true) : new GeometryFields(g, false));
     public static final Codec<SpellInstruction> INSTRUCTION = Codec.STRING.dispatch("kind", instruction -> switch (instruction) {
-        case SpellInstruction.Invoke ignored -> "invoke";
         case SpellInstruction.Operate ignored -> "operate";
         case SpellInstruction.Shape ignored -> "shape";
         case SpellInstruction.Release ignored -> "release";
         case SpellInstruction.Sustain ignored -> "sustain";
     }, tag -> switch (tag) {
-        case "invoke" -> PARTICIPATION.comapFlatMap(f -> validated(() -> new SpellInstruction.Invoke(f)), SpellInstruction.Invoke::participation).fieldOf("participation");
         case "operate" -> OPERATION.xmap(SpellInstruction.Operate::new, SpellInstruction.Operate::operation).fieldOf("operation");
         case "shape" -> GEOMETRY.xmap(SpellInstruction.Shape::new, SpellInstruction.Shape::geometry).fieldOf("geometry");
         case "release" -> com.mojang.serialization.MapCodec.unit(new SpellInstruction.Release());
@@ -72,12 +113,13 @@ public final class SpellCodecs {
         default -> com.mojang.serialization.MapCodec.<SpellInstruction>unit(new SpellInstruction.Release())
             .validate(v -> DataResult.error(() -> "Unknown instruction: " + tag));
     });
-    private record ProgramFields(int version, List<SpellInstruction> instructions) {}
+    private record ProgramFields(int version, SpellStructure structure, List<SpellInstruction> instructions) {}
     public static final Codec<SpellProgram> PROGRAM = RecordCodecBuilder.<ProgramFields>create(i -> i.group(
         Codec.INT.fieldOf("schema_version").forGetter(ProgramFields::version),
-        INSTRUCTION.listOf(4, SpellProgram.MAX_INSTRUCTIONS).fieldOf("instructions").forGetter(ProgramFields::instructions)
-    ).apply(i, ProgramFields::new)).comapFlatMap(f -> validated(() -> new SpellProgram(f.version(), f.instructions())),
-        p -> new ProgramFields(p.schemaVersion(), p.instructions()));
+        STRUCTURE.fieldOf("structure").forGetter(ProgramFields::structure),
+        INSTRUCTION.listOf(3, 3).fieldOf("instructions").forGetter(ProgramFields::instructions)
+    ).apply(i, ProgramFields::new)).comapFlatMap(f -> validated(() -> new SpellProgram(f.version(), f.structure(), f.instructions())),
+        p -> new ProgramFields(p.schemaVersion(), p.structure(), p.instructions()));
     private record RecordingFields(int version, String name, SpellProgram program) {}
     public static final Codec<RecordedSpell> RECORDED = RecordCodecBuilder.<RecordingFields>create(i -> i.group(
         Codec.INT.fieldOf("schema_version").forGetter(RecordingFields::version),
