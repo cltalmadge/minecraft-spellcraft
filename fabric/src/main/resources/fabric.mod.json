@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "spellcraft",
+  "version": "${version}",
+  "name": "Spellcraft Prototype",
+  "description": "Cross-loader scaffold for an Oblivion-style spellcrafting magic system.",
+  "authors": ["zoltanthered"],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "dev.spellcraft.prototype.fabric.SpellcraftFabric"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.3",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

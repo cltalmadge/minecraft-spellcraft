@@ -1,0 +1,75 @@
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev' version '2.0.147'
+}
+
+version = mod_version
+group = mod_group_id
+
+def neoVersionValue = neo_version.toString()
+def modIdValue = mod_id.toString()
+def resourceProperties = [
+    minecraft_version: minecraft_version.toString(),
+    minecraft_version_range: minecraft_version_range.toString(),
+    neo_version: neo_version.toString(),
+    mod_id: mod_id.toString(),
+    mod_name: mod_name.toString(),
+    mod_license: mod_license.toString(),
+    mod_version: mod_version.toString()
+]
+
+base {
+    archivesName = "${mod_id}-neoforge"
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir '../domain/src/main/java'
+            srcDir '../common/src/main/java'
+        }
+    }
+}
+
+neoForge {
+    version = neoVersionValue
+
+    runs {
+        client {
+            client()
+        }
+        server {
+            server()
+            programArgument '--nogui'
+        }
+        gameTestServer {
+            type = 'gameTestServer'
+            systemProperty 'neoforge.enabledGameTestNamespaces', modIdValue
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+processResources {
+    inputs.properties resourceProperties
+
+    filesMatching('META-INF/neoforge.mods.toml') {
+        expand resourceProperties
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 25
+    options.encoding = 'UTF-8'
+}
