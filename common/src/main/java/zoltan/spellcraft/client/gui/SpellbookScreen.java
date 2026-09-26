@@ -10,6 +10,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import org.jspecify.annotations.NonNull;
 
+import zoltan.spellcraft.client.SpellbookEntrySnapshot;
+import zoltan.spellcraft.client.SpellbookSnapshot;
+
 public final class SpellbookScreen extends Screen {
     private static final int ROW_HEIGHT = 20;
     private static final int BOX_HEIGHT = 110;
@@ -18,28 +21,21 @@ public final class SpellbookScreen extends Screen {
     private static final int SCROLL_BTN_H = 16;
     private static final int SCROLL_STEP = ROW_HEIGHT * 2;
 
-    /**
-     * Screen-local placeholder record. Presentation data only; not an authoritative
-     * gameplay model and not persisted or synced.
-     */
-    private record PlaceholderSpell(
-            String name,
-            String effect,
-            String magnitude,
-            String duration,
-            String delivery,
-            int cost
-    ) {}
+    private static final String EMPTY_STATE_TEXT = "No spells learned yet.";
 
-    private static final List<PlaceholderSpell> PLACEHOLDER_SPELLS = List.of(
-            new PlaceholderSpell("Flare", "Damage Health", "6", null, "Ray", 12),
-            new PlaceholderSpell("Heal Minor Wounds", "Restore Health", "5", null, "Self", 10),
-            new PlaceholderSpell("Fleet Step", "Fortify Speed", "10", "20s", "Self", 14)
-    );
+    /**
+     * Immutable, read-only snapshot supplied by the caller. The screen renders from
+     * this and never owns the spell definitions themselves.
+     */
+    private final @NonNull SpellbookSnapshot snapshot;
 
     private record DetailLine(FormattedCharSequence text, int color) {}
 
-    private PlaceholderSpell selectedSpell = PLACEHOLDER_SPELLS.getFirst();
+    /**
+     * Screen-local UI selection state. Null when there is no selection (for example an
+     * empty snapshot), in which case the empty-state text is rendered instead of details.
+     */
+    private SpellbookEntrySnapshot selectedEntry;
 
     // Fixed layout geometry (recomputed on init/resize).
     private int boxX;
@@ -57,8 +53,14 @@ public final class SpellbookScreen extends Screen {
     private Button upButton;
     private Button downButton;
 
-    public SpellbookScreen() {
+    public SpellbookScreen(@NonNull SpellbookSnapshot snapshot) {
         super(Component.translatable("screen.spellcraft.spellbook.title"));
+        this.snapshot = snapshot;
+        // Default to the first entry when there is one to select. An empty snapshot
+        // leaves selectedEntry null so the empty-state path renders.
+        if (!snapshot.spells().isEmpty()) {
+            this.selectedEntry = snapshot.spells().getFirst();
+        }
     }
 
     @Override
@@ -80,7 +82,8 @@ public final class SpellbookScreen extends Screen {
                         .build()
         );
 
-        for (int i = 0; i < PLACEHOLDER_SPELLS.size(); i++) {
+        List<SpellbookEntrySnapshot> spells = snapshot.spells();
+        for (int i = 0; i < spells.size(); i++) {
             final int index = i;
             addRenderableWidget(
                     Button.builder(
@@ -134,7 +137,7 @@ public final class SpellbookScreen extends Screen {
     }
 
     private int listTop() {
-        return boxTop - 20 - PLACEHOLDER_SPELLS.size() * ROW_HEIGHT;
+        return boxTop - 20 - snapshot.spells().size() * ROW_HEIGHT;
     }
 
     private int titleY() {
@@ -154,8 +157,9 @@ public final class SpellbookScreen extends Screen {
     }
 
     private void selectSpell(int index) {
-        if (index >= 0 && index < PLACEHOLDER_SPELLS.size()) {
-            selectedSpell = PLACEHOLDER_SPELLS.get(index);
+        List<SpellbookEntrySnapshot> spells = snapshot.spells();
+        if (index >= 0 && index < spells.size()) {
+            selectedEntry = spells.get(index);
             scrollOffset = 0;
             rebuildDetailLines();
         }
@@ -177,14 +181,15 @@ public final class SpellbookScreen extends Screen {
 
     private void rebuildDetailLines() {
         detailLines = new ArrayList<>();
-        addDetail(selectedSpell.name(), 0xFFFFFFFF);
-        addDetail(selectedSpell.effect(), 0xFFE0E0E0);
-        addDetail("Magnitude: " + selectedSpell.magnitude(), 0xFFB0B0B0);
-        if (selectedSpell.duration() != null) {
-            addDetail("Duration: " + selectedSpell.duration(), 0xFFB0B0B0);
+        // No selection (e.g. empty snapshot): nothing to render in the detail box.
+        if (selectedEntry == null) {
+            return;
         }
-        addDetail("Delivery: " + selectedSpell.delivery(), 0xFFB0B0B0);
-        addDetail("Cost: " + selectedSpell.cost(), 0xFFB0B0B0);
+
+        addDetail(selectedEntry.name(), 0xFFFFFFFF);
+        for (String detailLine : selectedEntry.detailLines()) {
+            addDetail(detailLine, 0xFFB0B0B0);
+        }
 
         int contentHeight = detailLines.size() * font.lineHeight;
         maxScroll = Math.max(0, contentHeight - viewportHeight);
@@ -217,8 +222,8 @@ public final class SpellbookScreen extends Screen {
         );
 
         int spellY = rowYFor(0);
-        for (PlaceholderSpell spell : PLACEHOLDER_SPELLS) {
-            int color = (spell == selectedSpell) ? 0xFFFFFFFF : 0xFFB0B0B0;
+        for (SpellbookEntrySnapshot spell : snapshot.spells()) {
+            int color = (spell == selectedEntry) ? 0xFFFFFFFF : 0xFFB0B0B0;
             graphics.text(
                     font,
                     Component.literal(spell.name()),
@@ -236,6 +241,14 @@ public final class SpellbookScreen extends Screen {
     private void renderDetailBox(GuiGraphicsExtractor graphics) {
         graphics.fill(boxX, boxTop, boxX + boxWidth, boxTop + BOX_HEIGHT, 0x99000000);
         graphics.outline(boxX, boxTop, boxWidth, BOX_HEIGHT, 0xFFD8D8D8);
+
+        // No selection: render the empty-state text instead of any details.
+        if (selectedEntry == null) {
+            int textX = (width - font.width(EMPTY_STATE_TEXT)) / 2;
+            int textY = boxTop + (BOX_HEIGHT - font.lineHeight) / 2;
+            graphics.text(font, Component.literal(EMPTY_STATE_TEXT), textX, textY, 0xFFB0B0B0, true);
+            return;
+        }
 
         if (detailLines.isEmpty()) {
             return;
