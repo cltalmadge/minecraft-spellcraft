@@ -1,148 +1,101 @@
 # Spellcraft Prototype Scaffold
 
-A deliberately small cross-loader scaffold for an Oblivion-style Minecraft magic system.
+A small Minecraft 26.3 multi-loader scaffold for an Oblivion-style magic system.
 
-**Target at scaffold creation:** Minecraft Java **26.3**.
+## Project structure
 
-The project is arranged so the loaders are adapters around shared gameplay code:
-
-```text
-domain/                pure Java rules + fast unit tests
-common/                shared Minecraft-facing gameplay source
-fabric/                Fabric bootstrap/build
-neoforge/              NeoForge bootstrap/build
-```
-
-The Fabric and NeoForge builds are intentionally isolated. Both compile the **same** `domain/` and `common/` source trees into their platform jar, but each loader keeps its own Gradle wrapper and toolchain plugin versions. This avoids forcing Fabric and NeoForge to agree on the same Gradle wrapper version.
-
-## What exists right now
-
-This is a scaffold, not a finished magic mod.
-
-It contains:
-
-- a pure Java `EffectId`, `Delivery`, `SpellEffectSpec`, `CostProfile`, and `DefaultSpellCostModel`;
-- JUnit tests demonstrating the intended fast TDD loop;
-- one shared Minecraft class that uses vanilla `Component` to prove common Minecraft code compiles on both loaders;
-- a Fabric entrypoint;
-- a NeoForge entrypoint;
-- build scripts for both loader jars;
-- a Prism Launcher copy helper.
-
-The first useful development loop is therefore:
+This repository is now **one Gradle build** with four real subprojects:
 
 ```text
-change rule
-   ↓
-cd domain && ./gradlew test
-   ↓
-change Minecraft integration
-   ↓
-build one loader
-   ↓
-copy jar into a Prism test instance
+zoltans-spellcraft/
+├── build.gradle
+├── settings.gradle
+├── gradle.properties
+├── gradlew
+├── domain/      # pure Java rules and fast unit tests
+├── common/      # shared Minecraft-facing code; real IDE/LSP project
+├── fabric/      # thin Fabric adapter and distributable jar
+└── neoforge/    # thin NeoForge adapter and distributable jar
 ```
+
+Dependency direction remains:
+
+```text
+domain
+  ↑
+common
+ ↑   ↑
+fabric neoforge
+```
+
+`common/src/main/java` is owned by the real `:common` Gradle subproject. It has a Minecraft 26.3 Loom development classpath so IntelliJ and JDTLS can resolve `net.minecraft.*`, report semantic errors, autocomplete symbols, and navigate into generated Minecraft sources.
+
+Fabric and NeoForge do **not** claim `common/` as a second source root. Instead they consume the shared source directories through Gradle configurations and compile those sources into their respective final jars. This is the standard multi-loader pattern and avoids the "non-project file" problem caused by sideways `../common/src` source-set wiring.
 
 ## Requirements
 
-Minecraft 26.3 targets **Java 25**. The loader projects are configured with Java toolchains and the Foojay resolver, so Gradle can resolve the requested toolchain when necessary. If you already have a JDK 25 installed, Gradle can use it directly.
+- JDK 25
+- internet access for the first dependency download
+- Prism Launcher for manual game testing
 
-You also need:
+The root Gradle launcher uses Gradle 9.7.1. All subprojects share that one Gradle invocation and one set of version properties.
 
-- an internet connection for the first Gradle dependency download;
-- Prism Launcher for the manual game loop described below.
+## Importing into IntelliJ or Zed
 
-### Gradle launchers in this scaffold
+Open the **repository root**, not an individual loader directory.
 
-The included `gradlew` / `gradlew.bat` files are small bootstrap launchers that download the exact Gradle distribution pinned for each loader. They serve the same practical purpose as a wrapper for this scaffold without sharing one Gradle version across both loader projects.
-
-- `domain/` and `fabric/`: Gradle 9.7.1
-- `neoforge/`: Gradle 9.2.1
-
-On Linux/macOS they require `curl` or `wget` plus `unzip`. On Windows they use PowerShell.
-
-## Fastest sanity check
-
-Run the pure domain tests first:
+First prime the Gradle model and Minecraft sources:
 
 ```bash
-cd domain
-./gradlew test
+./gradlew :common:compileJava
+./gradlew :common:genSources
 ```
 
-On Windows:
+Then refresh/reimport the root Gradle project in IntelliJ, or restart/clear JDTLS in Zed if it still has the old workspace cached.
 
-```powershell
-cd domain
-.\gradlew.bat test
+Open:
+
+```text
+common/src/main/java/dev/spellcraft/prototype/minecraft/items/SpellbookItem.java
 ```
 
-These tests should remain the default place for cost formulas, spell validation, effect constraints, school selection, spell compilation, and similar rules.
+The following import should be a normal project dependency:
 
-## Build the Fabric jar
+```java
+import net.minecraft.world.item.Item;
+```
+
+Ctrl-click / go-to-definition on `Item` should navigate to Minecraft source once Loom's generated sources are attached/imported.
+
+## Fast development commands
 
 ```bash
-cd fabric
-./gradlew build
-```
+# Pure rules
+./gradlew :domain:test
 
-Expected mod jar:
+# Check shared Minecraft-facing code
+./gradlew :common:compileJava
 
-```text
-fabric/build/libs/spellcraft-fabric-0.1.0.jar
-```
+# Generate Minecraft sources for IDE navigation
+./gradlew :common:genSources
 
-Ignore any `-sources.jar` artifact when installing into Minecraft.
+# Loader builds
+./gradlew :fabric:build
+./gradlew :neoforge:build
 
-The Fabric project is pinned to:
-
-```text
-Minecraft:   26.3
-Fabric Loader: 0.19.5
-Fabric API:  0.161.0+26.3
-Loom:        1.18-SNAPSHOT
-```
-
-## Build the NeoForge jar
-
-```bash
-cd neoforge
-./gradlew build
-```
-
-Expected mod jar:
-
-```text
-neoforge/build/libs/spellcraft-neoforge-0.1.0.jar
-```
-
-The NeoForge project is pinned to:
-
-```text
-Minecraft: 26.3
-NeoForge:  26.3.0.10-beta
-ModDevGradle: 2.0.147
-```
-
-## Build everything
-
-From the repository root:
-
-```bash
+# Everything
 ./build-all.sh
 ```
 
-That runs:
+Expected distributable jars:
 
 ```text
-domain tests
-→ Fabric build
-→ NeoForge build
+fabric/build/libs/spellcraft-fabric-0.1.0.jar
+neoforge/build/libs/spellcraft-neoforge-0.1.0.jar
 ```
 
-The loader builds are separate on purpose, so `build-all.sh` simply invokes each wrapper in sequence.
+Do not install the `common` or `domain` artifacts into Minecraft; they are development/shared-code projects.
 
----
 
 # Loading it into Minecraft with Prism Launcher
 
@@ -164,8 +117,7 @@ The scaffold currently declares Fabric API as a required dependency.
 Build the mod:
 
 ```bash
-cd fabric
-./gradlew build
+./gradlew :fabric:build
 ```
 
 Then in Prism:
@@ -205,8 +157,7 @@ In Prism Launcher:
 Build the mod:
 
 ```bash
-cd neoforge
-./gradlew build
+./gradlew :neoforge:build
 ```
 
 Then in Prism:
@@ -259,9 +210,7 @@ The script copies the newest non-sources jar for that loader into the supplied `
 Typical loop:
 
 ```bash
-cd fabric
-./gradlew build
-cd ..
+./gradlew :fabric:build
 ./tools/install-prism.sh fabric "/path/to/instance/.minecraft/mods"
 ```
 
@@ -278,15 +227,13 @@ Prism is useful for testing the actual distributable jar, but the Gradle loader 
 Fabric:
 
 ```bash
-cd fabric
-./gradlew runClient
+./gradlew :fabric:runClient
 ```
 
 NeoForge:
 
 ```bash
-cd neoforge
-./gradlew runClient
+./gradlew :neoforge:runClient
 ```
 
 Use dev runs for quick integration debugging. Use Prism periodically to verify the **built jar** behaves like an actual installed mod.
@@ -321,7 +268,7 @@ net.fabricmc.*
 net.neoforged.*
 ```
 
-The standalone domain build deliberately targets Java 21 so it can remain cheap to test on ordinary development JDKs. The same source is recompiled as part of each Java-25 Minecraft mod build.
+The domain project uses the same Java 25 toolchain as the rest of the repository. It remains cheap to test because it has no Minecraft or loader dependencies.
 
 ## `common/`
 
@@ -387,14 +334,13 @@ The included domain test demonstrates the intended workflow.
 Run one test class:
 
 ```bash
-cd domain
-./gradlew test --tests '*DefaultSpellCostModelTest'
+./gradlew :domain:test --tests '*DefaultSpellCostModelTest'
 ```
 
 Run the full domain suite:
 
 ```bash
-./gradlew test
+./gradlew :domain:test
 ```
 
 Recommended implementation order from here:

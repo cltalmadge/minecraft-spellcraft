@@ -2,17 +2,8 @@ plugins {
     id 'java-library'
 }
 
-group = 'dev.spellcraft.prototype'
-version = '0.1.0'
-
-repositories {
-    mavenCentral()
-}
-
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(25)
-    }
+base {
+    archivesName = "${mod_id}-domain"
 }
 
 dependencies {
@@ -23,4 +14,22 @@ dependencies {
 
 test {
     useJUnitPlatform()
+}
+
+// Export source directories so the loader projects can compile the pure domain
+// classes directly into their distributable jars without duplicating source.
+configurations {
+    domainJava {
+        canBeResolved = false
+        canBeConsumed = true
+    }
+    domainResources {
+        canBeResolved = false
+        canBeConsumed = true
+    }
+}
+
+artifacts {
+    domainJava sourceSets.main.java.sourceDirectories.singleFile
+    domainResources sourceSets.main.resources.sourceDirectories.singleFile
 }

@@ -25,3 +25,8 @@ Verified when this scaffold was created: **2026-09-26**.
 - Data locations: https://prismlauncher.org/wiki/getting-started/data-location/
 
 Exact loader APIs are expected to move. Keep version-specific changes inside `fabric/` and `neoforge/`.
+
+
+## Local build topology
+
+This repository intentionally uses one root Gradle 9.7.1 invocation for all subprojects so IDEs import a single coherent project model. Loader plugin versions remain isolated per subproject even though the Gradle process is shared.

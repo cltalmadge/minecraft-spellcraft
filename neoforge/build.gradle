@@ -1,10 +1,22 @@
 plugins {
     id 'java-library'
-    id 'net.neoforged.moddev' version '2.0.147'
+    id 'net.neoforged.moddev'
 }
 
-version = mod_version
-group = mod_group_id
+base {
+    archivesName = "${mod_id}-neoforge"
+}
+
+configurations {
+    sharedJava {
+        canBeResolved = true
+        canBeConsumed = false
+    }
+    sharedResources {
+        canBeResolved = true
+        canBeConsumed = false
+    }
+}
 
 def neoVersionValue = neo_version.toString()
 def modIdValue = mod_id.toString()
@@ -17,25 +29,6 @@ def resourceProperties = [
     mod_license: mod_license.toString(),
     mod_version: mod_version.toString()
 ]
-
-base {
-    archivesName = "${mod_id}-neoforge"
-}
-
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(25)
-    }
-}
-
-sourceSets {
-    main {
-        java {
-            srcDir '../domain/src/main/java'
-            srcDir '../common/src/main/java'
-        }
-    }
-}
 
 neoForge {
     version = neoVersionValue
@@ -61,15 +54,24 @@ neoForge {
     }
 }
 
-processResources {
-    inputs.properties resourceProperties
+dependencies {
+    sharedJava project(path: ':domain', configuration: 'domainJava')
+    sharedJava project(path: ':common', configuration: 'commonJava')
+    sharedResources project(path: ':domain', configuration: 'domainResources')
+    sharedResources project(path: ':common', configuration: 'commonResources')
+}
 
+tasks.named('compileJava', JavaCompile) {
+    dependsOn configurations.sharedJava
+    source(configurations.sharedJava)
+}
+
+processResources {
+    dependsOn configurations.sharedResources
+    from(configurations.sharedResources)
+
+    inputs.properties resourceProperties
     filesMatching('META-INF/neoforge.mods.toml') {
         expand resourceProperties
     }
-}
-
-tasks.withType(JavaCompile).configureEach {
-    options.release = 25
-    options.encoding = 'UTF-8'
 }

@@ -1,0 +1,39 @@
+plugins {
+    id 'base'
+    id 'net.fabricmc.fabric-loom' version "${loom_version}" apply false
+    id 'net.neoforged.moddev' version "${moddev_version}" apply false
+}
+
+allprojects {
+    group = mod_group
+    version = mod_version
+
+    repositories {
+        maven {
+            name = 'Fabric'
+            url = 'https://maven.fabricmc.net/'
+        }
+        mavenCentral()
+    }
+}
+
+subprojects {
+    plugins.withId('java') {
+        java {
+            toolchain {
+                languageVersion = JavaLanguageVersion.of(25)
+            }
+        }
+
+        tasks.withType(JavaCompile).configureEach {
+            options.release = 25
+            options.encoding = 'UTF-8'
+        }
+    }
+}
+
+tasks.register('buildAll') {
+    group = 'build'
+    description = 'Runs domain tests, checks common Minecraft code, and builds both loader jars.'
+    dependsOn ':domain:test', ':common:compileJava', ':fabric:build', ':neoforge:build'
+}

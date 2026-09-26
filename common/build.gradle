@@ -1,0 +1,35 @@
+plugins {
+    id 'java-library'
+    id 'net.fabricmc.fabric-loom'
+}
+
+base {
+    archivesName = "${mod_id}-common"
+}
+
+dependencies {
+    // Loom gives this real Gradle subproject Minecraft's development classpath,
+    // which is what IDEs/JDTLS need for diagnostics and source navigation.
+    minecraft "com.mojang:minecraft:${minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
+
+    implementation project(':domain')
+}
+
+// This project owns common/src/main/java for IDE/LSP purposes. Loader-specific
+// projects consume these source directories and compile them into their own jars.
+configurations {
+    commonJava {
+        canBeResolved = false
+        canBeConsumed = true
+    }
+    commonResources {
+        canBeResolved = false
+        canBeConsumed = true
+    }
+}
+
+artifacts {
+    commonJava sourceSets.main.java.sourceDirectories.singleFile
+    commonResources sourceSets.main.resources.sourceDirectories.singleFile
+}
