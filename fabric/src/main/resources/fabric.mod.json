@@ -9,7 +9,7 @@
   "environment": "*",
   "entrypoints": {
     "main": [
-      "dev.spellcraft.prototype.fabric.SpellcraftFabric"
+      "zoltan.spellcraft.runner.fabric.SpellcraftFabric"
     ]
   },
   "depends": {

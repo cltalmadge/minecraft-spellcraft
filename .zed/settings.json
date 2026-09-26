@@ -1,0 +1,29 @@
+{
+  "lsp": {
+    "jdtls": {
+      "settings": {
+        "java_home": "/usr/lib/jvm/java-25-openjdk"
+      },
+      "initialization_options": {
+        "settings": {
+          "java": {
+            "configuration": {
+              "updateBuildConfiguration": "automatic"
+            },
+            "import": {
+              "gradle": {
+                "enabled": true,
+                "wrapper": {
+                  "enabled": true
+                },
+                "java": {
+                  "home": "/usr/lib/jvm/java-25-openjdk"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

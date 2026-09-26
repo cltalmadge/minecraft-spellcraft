@@ -28,11 +28,18 @@ configurations {
 
 dependencies {
     minecraft "com.mojang:minecraft:${minecraft_version}"
+
     implementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
     implementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
 
+    // IDE / Java project-model dependencies.
+    compileOnly project(':domain')
+    compileOnly project(':common')
+
+    // Source inclusion for the actual Fabric jar.
     sharedJava project(path: ':domain', configuration: 'domainJava')
     sharedJava project(path: ':common', configuration: 'commonJava')
+
     sharedResources project(path: ':domain', configuration: 'domainResources')
     sharedResources project(path: ':common', configuration: 'commonResources')
 }
