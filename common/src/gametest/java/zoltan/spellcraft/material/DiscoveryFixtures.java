@@ -16,7 +16,7 @@ import java.util.List;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 
-/** Bootstrap experiment, analyzed once during item registration, never during casting. */
+/** Test-only recordings for isolated runtime checks. Gameplay recordings come from the workbench. */
 public final class DiscoveryFixtures {
     private DiscoveryFixtures() {}
     public static RecordedSpell directedHeat() { return directed(Items.BLAZE_POWDER, Forms.HEAT, "Thermal transmission"); }

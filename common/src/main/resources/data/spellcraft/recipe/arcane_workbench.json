@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "C C",
+    "SSS",
+    "I I"
+  ],
+  "key": {
+    "C": "minecraft:copper_ingot",
+    "S": "minecraft:polished_deepslate",
+    "I": "minecraft:iron_ingot"
+  },
+  "result": {
+    "id": "spellcraft:arcane_workbench",
+    "count": 1
+  }
+}

@@ -13,7 +13,9 @@ public final class SpellcraftGameTests {
     public static void register(RegisterGameTestsEvent event) {
         var environment = event.registerEnvironment(Identifier.fromNamespaceAndPath("spellcraft", "laboratory"));
         var data = new TestData<>(environment, Identifier.fromNamespaceAndPath("spellcraft", "laboratory"), 40, 0, true);
-        for (var entry : ManifestationGameTests.tests(NeoForgeItems.WAND.get(), NeoForgeItems.SPELL_PAGE.get()).entrySet()) {
+        var tests = new java.util.LinkedHashMap<>(ManifestationGameTests.tests(NeoForgeItems.WAND.get(), NeoForgeItems.SPELL_PAGE.get()));
+        tests.putAll(zoltan.spellcraft.workbench.WorkbenchGameTests.tests(NeoForgeWorkbench.BLOCK.get(), NeoForgeItems.WAND.get(), NeoForgeItems.SPELL_PAGE.get()));
+        for (var entry : tests.entrySet()) {
             event.registerTest(Identifier.fromNamespaceAndPath("spellcraft", entry.getKey()),
                 new FunctionGameTestInstance(BuiltinTestFunctions.ALWAYS_PASS, data) {
                     @Override public void run(GameTestHelper helper) { entry.getValue().accept(helper); }

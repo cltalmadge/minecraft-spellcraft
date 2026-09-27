@@ -13,5 +13,15 @@
   "cast.spellcraft.invalid_caster": "Cannot manifest here.",
   "cast.spellcraft.insufficient_source": "The source cannot sustain this burden.",
   "cast.spellcraft.incompatible_vessel": "The vessel cannot hold this structure.",
-  "cast.spellcraft.cooldown": "The conduit is recovering."
+  "cast.spellcraft.cooldown": "The conduit is recovering.",
+  "block.spellcraft.arcane_workbench": "Arcane Workbench",
+  "item.spellcraft.divider": "Divider",
+  "workbench.spellcraft.unresolved": "This material\u2019s expression is unresolved.",
+  "workbench.spellcraft.blank_page": "Insert a blank spell page.",
+  "workbench.spellcraft.recorded": "Observation recorded.",
+  "workbench.spellcraft.cannot_record": "A blank page and an interpretable working are needed.",
+  "workbench.spellcraft.selected": "Source marked. Click the destination; sneak to erase the stroke.",
+  "workbench.spellcraft.relation_failed": "That stroke cannot be made or removed.",
+  "workbench.spellcraft.occupied": "There is already material here.",
+  "workbench.spellcraft.bound": "Recording bound to wand."
 }

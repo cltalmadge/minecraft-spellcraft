@@ -40,7 +40,8 @@ public final class ManifestationGameTests {
             "wall_blocks_transmission", h -> cast(h, wand, false, true),
             "page_preserves_without_manifesting", h -> {
                 var stack = new ItemStack(page);
-                h.assertValueEqual(stack.get(SpellComponents.RECORDED_SPELL), new ItemStack(wand).get(SpellComponents.RECORDED_SPELL), "portable recording");
+                stack.set(SpellComponents.RECORDED_SPELL, DiscoveryFixtures.directedHeat());
+                h.assertValueEqual(stack.get(SpellComponents.RECORDED_SPELL), DiscoveryFixtures.directedHeat(), "portable recording");
                 var ops = h.getLevel().registryAccess().createSerializationContext(com.mojang.serialization.JsonOps.INSTANCE);
                 var encoded = ItemStack.CODEC.encodeStart(ops, stack).getOrThrow();
                 var restored = ItemStack.CODEC.parse(ops, encoded).getOrThrow();
@@ -158,7 +159,7 @@ public final class ManifestationGameTests {
             },
             "source_and_vessel_gate_execution", h -> {
                 var player = h.makeMockPlayer(GameType.SURVIVAL);
-                var stack = new ItemStack(wand); player.setItemInHand(InteractionHand.MAIN_HAND, stack);
+                var stack = new ItemStack(wand); stack.set(SpellComponents.RECORDED_SPELL, DiscoveryFixtures.directedHeat()); player.setItemInHand(InteractionHand.MAIN_HAND, stack);
                 var service = new CastService(); var context = new MinecraftSpellContext(h.getLevel(), player);
                 var vessel = new VesselProfile(new SpellBurden(3, 6, 0), true, Set.of());
                 h.assertValueEqual(service.cast(context, stack, vessel, b -> false).status(), ManifestationResult.Status.INSUFFICIENT_SOURCE, "source gate");
@@ -199,7 +200,7 @@ public final class ManifestationGameTests {
         var player = h.makeMockPlayer(GameType.SURVIVAL);
         player.setPos(h.absoluteVec(new Vec3(2.5, 1, 2.5))); player.setYRot(0); player.setXRot(0);
         var target = h.spawnWithNoFreeWill(EntityTypes.HUSK, new Vec3(2.5, 1, 5.5));
-        var stack = new ItemStack(wand);
+        var stack = new ItemStack(wand); stack.set(SpellComponents.RECORDED_SPELL, DiscoveryFixtures.directedHeat());
         if (motion) stack.set(SpellComponents.RECORDED_SPELL, DiscoveryFixtures.directedMotion());
         player.setItemInHand(InteractionHand.MAIN_HAND, stack);
         if (wall) for (int y = 1; y <= 3; y++) h.setBlock(2, y, 4, Blocks.STONE);

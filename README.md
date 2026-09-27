@@ -2,7 +2,7 @@
 
 Spellcraft is a Minecraft Java Edition 26.3 mod about discovering magic through experimentation. Its design centers on three ideas: Form describes the quality being manipulated, Number describes the relationship, and Geometry describes how that relationship is arranged. Materials participate in Forms, and their arrangement gives a spell its meaning.
 
-The mod supports Fabric and NeoForge. The playable prototype includes a wand that transmits Heat to a living target, a page that holds a recorded spell, and a spellbook. Spell construction currently happens in code; there is no in-game spellcrafting interface yet.
+The mod supports Fabric and NeoForge. Players construct experiments on an Arcane Workbench, record the analyzed pattern onto a spell page, and bind it to a wand. The same domain analyzer and compiler determine the spell’s meaning. The spellbook still contains a sample observation.
 
 ## Build
 
@@ -41,28 +41,51 @@ For a Prism Launcher instance, the installation helper copies the latest built j
 ./tools/install-prism.sh neoforge "/absolute/path/to/instance/.minecraft/mods"
 ```
 
-## Try the wand
+## Construct and cast your first spell
 
-Open a world with commands enabled and give yourself a wand:
-
-```mcfunction
-/give @s spellcraft:wand
-```
-
-Hold it, aim at a living entity within 16 blocks, and right-click. The default recording transmits Heat, igniting the target and producing flame particles. Solid blocks obstruct the cast. Successful casts have a one-second cooldown and consume food exhaustion; casting requires a nonempty food bar.
-
-The message above the hotbar reports whether the cast succeeded or why it could not be performed.
-
-## Spell pages and the spellbook
+Give yourself the apparatus and materials, or use their crafting recipes:
 
 ```mcfunction
+/give @s spellcraft:arcane_workbench
+/give @s spellcraft:divider
 /give @s spellcraft:spell_page
-/give @s spellcraft:spellbook
+/give @s spellcraft:wand
+/give @s minecraft:blaze_powder
+/give @s minecraft:iron_ingot
 ```
 
-The page holds the same Heat recording as the default wand. It stores spell information and has no right-click action or binding interface.
+The workbench is fixed to world north. Stand on its **south side**, facing north: the control strip is nearest you, and the dark drafting surface is behind it. Its logical 9×9 grid is invisible; the hover marker shows a placement point.
 
-On Fabric, right-click the spellbook to open a sample observation about thermal transmission. The screen displays example content rather than tracking learned spells. On NeoForge, the spellbook item has no screen yet.
+1. Place the workbench. Right-click two separate points on the dark surface with blaze powder and iron. One item moves from your hand onto each point.
+2. Hold the Divider. Click blaze first, then iron: the arrow points **Blaze → Iron**. Click order supplies direction.
+3. Empty your hand and click the **silver activation plate** (second control from the left). The open pair gives a tone and dissipating smoke along the relationship. Activation consumes no materials.
+4. Click the **pale page receptacle** (rightmost control) with a blank spell page. Empty your hand and click the **gold recording plate** (third control). Click the receptacle empty-handed to retrieve the recorded page.
+5. Put the recorded page in your offhand and hold the wand in your main hand. **Sneak + right-click in the air** to bind its program. Release sneak, aim at a living entity within 16 blocks, and right-click to cast Heat.
+
+Solid blocks obstruct the cast. Successful casts have a one-second cooldown and cause food exhaustion; casting requires a nonempty food bar. Binding preserves the page and deliberately replaces any wand recording. New pages and wands are blank.
+
+### Adjust the apparatus
+
+| Interaction | Effect |
+| --- | --- |
+| Empty hands, sneak + right-click material | Recover that item; remove its strokes and clear the enclosure |
+| Divider: click A, then sneak + click B | Erase only A → B |
+| Divider: click an empty drafting point | Cancel the selected source |
+| Divider on the green enclosure plate (leftmost control) | Enclose all currently placed loci |
+| Sneak + Divider on the green plate | Clear the enclosure |
+| Break the workbench | Drop every stored material and page |
+
+Adding/removing materials clears an existing enclosure; redraw it deliberately after changing membership. A selected Divider source expires after 30 seconds and cancels on distance, dimension, workbench replacement/removal, or locus removal. A full inventory causes recovered materials to drop beside you.
+
+Feathers express Motion. Materials with no mapped Forms, including iron, serve as inert recipients/anchors. Exactly one intrinsic nonzero Form is expressed automatically. **Multi-Form isolation is unresolved:** those materials remain visible and recoverable, but block activation/recording until replaced. No Form selector exists.
+
+An enclosed Dyad remains interpretable and recordable while unstable. Its recording preserves enclosure; the current runtime reports unsupported containment rather than treating it as an open transfer. Mediation and sustained stabilization execution remain deferred.
+
+Detailed implementation and test notes: [Arcane Workbench](docs/arcane-workbench.md).
+
+## Spellbook
+
+On Fabric, right-click `spellcraft:spellbook` to open a sample observation about thermal transmission. The screen displays example content rather than tracking learned spells. On NeoForge, the spellbook item has no screen yet.
 
 ## Run from source
 
@@ -95,7 +118,7 @@ Analysis preserves those contributions and material identities in `SpellLocus.ex
 
 `participatingForms()` includes all expressed contributions, across roles. Provisional burden retains that broader meaning: intensity averages total strength per contributing locus (zero if none), complexity counts distinct contributing Forms plus operation/topology, and persistence reflects enclosure. This is structural burden, not just manifested force.
 
-The future workbench's Form selection, mediator transformations, recipient compatibility/resonance, and persistent stabilizer behavior remain open gameplay questions.
+Multi-Form isolation, mediator transformations, recipient compatibility/resonance, and persistent stabilizer behavior remain open gameplay questions.
 
 ## Run tests
 

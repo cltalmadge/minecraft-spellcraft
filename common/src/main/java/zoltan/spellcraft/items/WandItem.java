@@ -20,6 +20,11 @@ public final class WandItem extends Item {
     public WandItem(Properties properties) { super(properties); }
     @Override public InteractionResult use(Level level, Player player, InteractionHand hand) {
         if (level instanceof ServerLevel server) {
+            if (player.isShiftKeyDown() && SpellPageBinding.bind(player.getItemInHand(hand),
+                player.getItemInHand(hand == InteractionHand.MAIN_HAND ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND))) {
+                player.sendOverlayMessage(Component.translatable("workbench.spellcraft.bound"));
+                return InteractionResult.SUCCESS;
+            }
             // The wand holds and directs; the caster supplies capacity and incurs provisional fatigue.
             ManifestationSource spirit = burden -> player.getFoodData().getFoodLevel() > 0 && burden.intensity() <= 3 && burden.persistence() == 0;
             var result = casts.cast(new MinecraftSpellContext(server, player), player.getItemInHand(hand), vessel, spirit);

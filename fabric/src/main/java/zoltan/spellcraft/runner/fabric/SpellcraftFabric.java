@@ -16,7 +16,11 @@ public final class SpellcraftFabric implements ModInitializer {
         Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE,
                 Identifier.fromNamespaceAndPath(MinecraftMagic.MOD_ID, "recorded_spell"),
                 SpellComponents.RECORDED_SPELL);
+        Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE,
+                Identifier.fromNamespaceAndPath(MinecraftMagic.MOD_ID, "divider_selection"),
+                zoltan.spellcraft.workbench.DividerSelection.TYPE);
         FabricItems.initialize();
+        FabricWorkbench.initialize();
 
         MinecraftMagic.LOGGER.info(
                 "Spellbook registry key = {}",

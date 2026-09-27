@@ -13,7 +13,9 @@ public final class SpellcraftNeoForge {
         var components = DeferredRegister.create(
                 Registries.DATA_COMPONENT_TYPE, MinecraftMagic.MOD_ID);
         components.register("recorded_spell", () -> SpellComponents.RECORDED_SPELL);
+        components.register("divider_selection", () -> zoltan.spellcraft.workbench.DividerSelection.TYPE);
         components.register(modBus);
+        NeoForgeWorkbench.register(modBus);
         NeoForgeItems.register(modBus);
         MinecraftMagic.initialize("neoforge");
     }

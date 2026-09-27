@@ -15,6 +15,8 @@ import zoltan.spellcraft.client.gui.SpellbookScreen;
 public final class SpellcraftFabricClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
+        net.fabricmc.fabric.api.client.rendering.v1.BlockEntityRendererRegistry.register(FabricWorkbench.TYPE,
+            zoltan.spellcraft.client.workbench.ArcaneWorkbenchRenderer::new);
         UseItemCallback.EVENT.register((player, level, hand) -> {
             if (player.getItemInHand(hand).is(FabricItems.SPELLBOOK)) {
                 // Temporary placeholder source. Networking is out of scope, so the
