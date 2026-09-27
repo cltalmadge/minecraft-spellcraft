@@ -17,7 +17,8 @@ public final class SpellcraftGameTests {
         tests.putAll(zoltan.spellcraft.workbench.WorkbenchGameTests.tests(NeoForgeWorkbench.BLOCK.get(), NeoForgeItems.WAND.get(), NeoForgeItems.SPELL_PAGE.get()));
         for (var entry : tests.entrySet()) {
             event.registerTest(Identifier.fromNamespaceAndPath("spellcraft", entry.getKey()),
-                new FunctionGameTestInstance(BuiltinTestFunctions.ALWAYS_PASS, data) {
+                new FunctionGameTestInstance(BuiltinTestFunctions.ALWAYS_PASS, entry.getKey().equals("workbench_chunk_unload_reload")
+                    ? new TestData<>(environment, Identifier.fromNamespaceAndPath("spellcraft", "laboratory"), 400, 0, true) : data) {
                     @Override public void run(GameTestHelper helper) { entry.getValue().accept(helper); }
                 });
         }

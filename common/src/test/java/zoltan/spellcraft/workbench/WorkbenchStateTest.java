@@ -112,4 +112,65 @@ class WorkbenchStateTest {
         assertTrue(analyze(restored).analysis().pattern().isEmpty());assertTrue(restored.remove(0).is(Items.BLAZE_POWDER));
     }
 
+    @Test void revisionTracksSuccessfulPhysicalChangesOnly() {
+        var s=new ArcaneWorkbenchState(); var a=add(s,1,4,Items.BLAZE_POWDER); var b=add(s,7,4,Items.IRON_INGOT);
+        assertEquals(2,s.revision());
+        assertTrue(s.connect(a.id(),b.id())); assertEquals(3,s.revision());
+        assertFalse(s.connect(a.id(),b.id())); assertFalse(s.disconnect(b.id(),a.id()));
+        assertFalse(s.clearBoundary()); assertTrue(s.takePage().isEmpty());
+        assertFalse(s.insertPage(new ItemStack(Items.DIAMOND))); assertEquals(3,s.revision());
+        assertTrue(s.enclose(List.of(a.id(),b.id()))); assertEquals(4,s.revision());
+        assertFalse(s.enclose(List.of(b.id(),a.id()))); assertEquals(4,s.revision());
+        assertTrue(s.clearBoundary()); assertEquals(5,s.revision());
+        assertTrue(s.disconnect(a.id(),b.id())); assertEquals(6,s.revision());
+        analyze(s); assertEquals(6,s.revision());
+        assertTrue(s.remove(99).isEmpty()); assertEquals(6,s.revision());
+        s.remove(a.id()); assertEquals(7,s.revision());
+        s.drain(); assertEquals(8,s.revision());
+        s.drain(); assertEquals(8,s.revision());
+    }
+    @Test void malformedLociAndBoundariesPreserveItemsAndSavedCounters() {
+        var registries=RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY);
+        var s=new ArcaneWorkbenchState();var a=add(s,1,4,Items.BLAZE_POWDER);var b=add(s,7,4,Items.IRON_INGOT);
+        s.connect(a.id(),b.id());s.enclose(List.of(a.id(),b.id()));
+        var out=TagValueOutput.createWithContext(ProblemReporter.DISCARDING,registries);WorkbenchPersistence.save(s,out);
+        for (String corruption : List.of("duplicate_id","duplicate_position","coordinate","boundary")) {
+            var tag=out.buildResult().copy(); var node=tag.getListOrEmpty("loci").getCompoundOrEmpty(1);
+            switch (corruption) {
+                case "duplicate_id" -> node.putLong("id",a.id());
+                case "duplicate_position" -> node.putInt("x",1);
+                case "coordinate" -> node.putInt("z",99);
+                case "boundary" -> tag.getListOrEmpty("boundary").add(net.minecraft.nbt.StringTag.valueOf("bad"));
+            }
+            tag.putLong("next_id",50);tag.putLong("revision",123);
+            var restored=WorkbenchPersistence.load(TagValueInput.create(ProblemReporter.DISCARDING,registries,tag));
+            assertEquals(123,restored.revision());assertEquals(50,restored.nextId());
+            assertTrue(restored.boundary().isEmpty());
+            if (!corruption.equals("boundary")) { assertEquals(1,restored.loci().size());assertTrue(restored.relations().isEmpty()); }
+            var items=restored.drain();assertEquals(2,items.stream().mapToInt(ItemStack::getCount).sum());
+            assertEquals(1,items.stream().filter(i -> i.is(Items.BLAZE_POWDER)).count());
+            assertEquals(1,items.stream().filter(i -> i.is(Items.IRON_INGOT)).count());
+            assertTrue(restored.drain().isEmpty());
+        }
+    }
+
+    @Test void invalidExpressionValuesCannotRemoveALocusAndLeaveDifferentMagic() {
+        var registries=RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY);
+        var state=new ArcaneWorkbenchState();var a=add(state,1,4,Items.BLAZE_POWDER);var b=add(state,7,4,Items.FEATHER);
+        state.connect(a.id(),b.id());
+        var out=TagValueOutput.createWithContext(ProblemReporter.DISCARDING,registries);WorkbenchPersistence.save(state,out);
+        for (boolean duplicate : List.of(true,false)) {
+            var tag=out.buildResult().copy();
+            var expression=tag.getListOrEmpty("loci").getCompoundOrEmpty(0).getListOrEmpty("expression");
+            if (duplicate) expression.add(expression.getCompoundOrEmpty(0).copy());
+            else expression.getCompoundOrEmpty(0).putDouble("strength",0);
+            var restored=WorkbenchPersistence.load(TagValueInput.create(ProblemReporter.DISCARDING,registries,tag));
+            assertEquals(2,restored.loci().size());assertEquals(state.relations(),restored.relations());
+            assertEquals(state.revision(),restored.revision());assertTrue(restored.recovery().isEmpty());
+            assertFalse(restored.locus(a.id()).orElseThrow().resolved());
+            assertTrue(analyze(restored).unresolved());assertTrue(analyze(restored).analysis().pattern().isEmpty());
+            assertEquals(2,restored.drain().size());
+        }
+    }
+
 }

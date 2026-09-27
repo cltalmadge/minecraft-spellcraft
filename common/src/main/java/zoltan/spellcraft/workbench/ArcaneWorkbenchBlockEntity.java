@@ -21,6 +21,7 @@ public final class ArcaneWorkbenchBlockEntity extends BlockEntity {
     private WorkbenchWorkingAdapter.Snapshot snapshot;
     private long lastActivation = Long.MIN_VALUE;
     public ArcaneWorkbenchBlockEntity(BlockPos pos, BlockState blockState) { super(WorkbenchContent.entityType.get(), pos, blockState); reanalyze(); }
+    /** Read-only outside the workbench package; server interaction owns mutations and changed(). */
     public ArcaneWorkbenchState state() { return state; }
     public String session() { return session; }
     public WorkbenchWorkingAdapter.Snapshot analysis() { return snapshot; }
