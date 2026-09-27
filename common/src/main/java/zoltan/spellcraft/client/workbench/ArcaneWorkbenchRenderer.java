@@ -23,12 +23,14 @@ public final class ArcaneWorkbenchRenderer implements BlockEntityRenderer<Arcane
     record Line(double x1, double z1, double x2, double z2, int color, double width) {}
     public static final class State extends BlockEntityRenderState {
         List<Placed> items = List.of(); List<Line> lines = List.of();
+        Direction facing = Direction.NORTH;
     }
     private final ItemModelResolver resolver;
     public ArcaneWorkbenchRenderer(BlockEntityRendererProvider.Context context) { resolver = context.itemModelResolver(); }
     @Override public State createRenderState() { return new State(); }
     @Override public void extractRenderState(ArcaneWorkbenchBlockEntity bench, State state, float partialTicks, Vec3 camera, ModelFeatureRenderer.CrumblingOverlay breaking) {
         BlockEntityRenderer.super.extractRenderState(bench, state, partialTicks, camera, breaking);
+        state.facing = bench.getBlockState().getValue(ArcaneWorkbenchBlock.FACING);
         var items = new ArrayList<Placed>(); var lines = new ArrayList<Line>(); var board = bench.state();
         for (var n : board.loci()) addItem(items, n.item(), WorkbenchCoordinates.x(n.point()), WorkbenchCoordinates.z(n.point()), .105f, bench);
         if (!board.page().isEmpty()) addItem(items, board.page(), .85, .89, .17f, bench);
@@ -58,8 +60,8 @@ public final class ArcaneWorkbenchRenderer implements BlockEntityRenderer<Arcane
                 if (selected != null && selected.pos().equals(bench.getBlockPos()) && selected.dimension().equals(bench.getLevel().dimension().identifier().toString()))
                     board.locus(selected.locus()).ifPresent(n -> ring(lines, WorkbenchCoordinates.x(n.point()), WorkbenchCoordinates.z(n.point()), 0xffffca50));
             }
-            if (minecraft.hitResult instanceof BlockHitResult hit && hit.getBlockPos().equals(bench.getBlockPos())) {
-                var local = hit.getLocation().subtract(Vec3.atLowerCornerOf(bench.getBlockPos()));
+            if (minecraft.hitResult instanceof BlockHitResult hit && ArcaneWorkbenchLayout.resolve(bench.getLevel(), hit.getBlockPos()) == bench) {
+                var local = ArcaneWorkbenchLayout.local(bench.getBlockPos(), state.facing, hit.getLocation());
                 WorkbenchCoordinates.grid(local.x, local.z, hit.getDirection() == Direction.UP).ifPresent(p ->
                     ring(lines, WorkbenchCoordinates.x(p), WorkbenchCoordinates.z(p), board.at(p).isPresent() ? 0xffe5f5e7 : 0xff81978e));
             }
@@ -77,8 +79,11 @@ public final class ArcaneWorkbenchRenderer implements BlockEntityRenderer<Arcane
         lines.add(new Line(x2,z2,x1,z2,color,.004)); lines.add(new Line(x1,z2,x1,z1,color,.004));
     }
     @Override public void submit(State state, PoseStack pose, SubmitNodeCollector collector, CameraRenderState camera) {
+        pose.pushPose();
+        pose.translate(.5, 0, .5); pose.rotateDegrees(Axis.YP, ArcaneWorkbenchLayout.rotation(state.facing));
+        pose.translate(-.5, 0, -.5); pose.scale(1, 1, 2);
         for (var p : state.items) {
-            pose.pushPose(); pose.translate(p.x(),1.065,p.z()); pose.rotateDegrees(Axis.XP,90); pose.scale(p.scale(),p.scale(),p.scale());
+            pose.pushPose(); pose.translate(p.x(),1.065,p.z()); pose.scale(1,1,.5f); pose.rotateDegrees(Axis.XP,90); pose.scale(p.scale(),p.scale(),p.scale());
             p.item().submit(pose,collector,state.lightCoords,OverlayTexture.NO_OVERLAY,0); pose.popPose();
         }
         var lines = state.lines;
@@ -92,5 +97,17 @@ public final class ArcaneWorkbenchRenderer implements BlockEntityRenderer<Arcane
                 buffer.addVertex(transform,(float)(l.x1()-nx),1.012f,(float)(l.z1()-nz)).setColor(l.color());
             }
         });
+        pose.popPose();
+    }
+
+    // Vanilla 26.3 has no per-BE frustum-box hook: use its global renderer path with finite range.
+    @Override public boolean shouldRenderOffScreen() { return true; }
+    // Also implements NeoForge's optional bounding-box hook; vanilla compiles this as a normal method.
+    public AABB getRenderBoundingBox(ArcaneWorkbenchBlockEntity bench) {
+        return ArcaneWorkbenchLayout.bounds(bench.getBlockPos(), bench.getBlockState().getValue(ArcaneWorkbenchBlock.FACING));
+    }
+    @Override public boolean shouldRender(ArcaneWorkbenchBlockEntity bench, Vec3 camera) {
+        return ArcaneWorkbenchLayout.validPair(bench.getLevel(), bench.getBlockPos(), bench.getBlockState())
+            && getRenderBoundingBox(bench).distanceToSqr(camera) < getViewDistance() * getViewDistance();
     }
 }

@@ -19,7 +19,7 @@ public final class FabricWorkbench {
         new BlockEntityType<>(ArcaneWorkbenchBlockEntity::new, Set.of(BLOCK)));
     public static void initialize() {
         WorkbenchContent.entityType = () -> TYPE;
-        Registry.register(BuiltInRegistries.ITEM, id("arcane_workbench"), new BlockItem(BLOCK,
+        Registry.register(BuiltInRegistries.ITEM, id("arcane_workbench"), new ArcaneWorkbenchItem(BLOCK,
             new Item.Properties().setId(ResourceKey.create(Registries.ITEM, id("arcane_workbench")))));
         Registry.register(BuiltInRegistries.ITEM, id("divider"), new DividerItem(new Item.Properties().stacksTo(1)
             .setId(ResourceKey.create(Registries.ITEM, id("divider")))));

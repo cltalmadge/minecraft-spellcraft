@@ -31,14 +31,18 @@ public enum WorkbenchFeedback {
             case UNSTABLE -> ParticleTypes.ELECTRIC_SPARK;
             default -> ParticleTypes.ASH;
         };
-        for (var n : state.loci()) level.sendParticles(particle, pos.getX() + WorkbenchCoordinates.x(n.point()), pos.getY() + 1.08,
-            pos.getZ() + WorkbenchCoordinates.z(n.point()), this == UNSTABLE ? 7 : 3, .025, .06, .025, .01);
+        var facing = level.getBlockState(pos).getValue(ArcaneWorkbenchBlock.FACING);
+        for (var n : state.loci()) {
+            var world = ArcaneWorkbenchLayout.world(pos, facing, WorkbenchCoordinates.x(n.point()), 1.08, WorkbenchCoordinates.z(n.point()));
+            level.sendParticles(particle, world.x, world.y, world.z, this == UNSTABLE ? 7 : 3, .025, .06, .025, .01);
+        }
         if (this == COHERENT || this == UNCONTAINED) for (var r : state.relations()) {
             var a = state.locus(r.from()).orElseThrow().point(); var b = state.locus(r.to()).orElseThrow().point();
             for (int i = 0; i <= 8; i++) {
                 double t = i / 8.0;
-                level.sendParticles(particle, pos.getX() + WorkbenchCoordinates.x(a) * (1-t) + WorkbenchCoordinates.x(b)*t,
-                    pos.getY()+1.04, pos.getZ()+WorkbenchCoordinates.z(a)*(1-t)+WorkbenchCoordinates.z(b)*t, 1, 0, .01, 0, .005);
+                var world = ArcaneWorkbenchLayout.world(pos, facing, WorkbenchCoordinates.x(a)*(1-t)+WorkbenchCoordinates.x(b)*t,
+                    1.04, WorkbenchCoordinates.z(a)*(1-t)+WorkbenchCoordinates.z(b)*t);
+                level.sendParticles(particle, world.x, world.y, world.z, 1, 0, .01, 0, .005);
             }
         }
     }

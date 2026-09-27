@@ -3,7 +3,7 @@ package zoltan.spellcraft.workbench;
 import dev.spellcraft.domain.working.GridPoint;
 import java.util.Optional;
 
-/** Fixed north-aligned drafting area. The south strip is reserved for physical controls. */
+/** Normalized complete-workstation coordinates. The player/front strip holds the controls. */
 public final class WorkbenchCoordinates {
     public static final double MIN = 0.05, WIDTH = 0.90, DEPTH = 0.72;
     private WorkbenchCoordinates() {}

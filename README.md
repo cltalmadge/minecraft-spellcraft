@@ -54,7 +54,7 @@ Give yourself the apparatus and materials, or use their crafting recipes:
 /give @s minecraft:iron_ingot
 ```
 
-The workbench is fixed to world north. Stand on its **south side**, facing north: the control strip is nearest you, and the dark drafting surface is behind it. Its logical 9×9 grid is invisible; the hover marker shows a placement point.
+One workbench item places a **two-block-long table** extending away from you in your horizontal facing direction. Keep both positions clear. The control strip is nearest you, and one continuous dark drafting surface spans both halves. Its logical 9×9 grid is invisible; the hover marker shows a placement point. Either half addresses the same workstation. Old single-block prototype tables must be broken and replaced; their stored contents are recovered on breaking.
 
 1. Place the workbench. Right-click two separate points on the dark surface with blaze powder and iron. One item moves from your hand onto each point.
 2. Hold the Divider. Click blaze first, then iron: the arrow points **Blaze → Iron**. Click order supplies direction.
@@ -73,7 +73,7 @@ Solid blocks obstruct the cast. Successful casts have a one-second cooldown and 
 | Divider: click an empty drafting point | Cancel the selected source |
 | Divider on the green enclosure plate (leftmost control) | Enclose all currently placed loci |
 | Sneak + Divider on the green plate | Clear the enclosure |
-| Break the workbench | Drop every stored material and page |
+| Break either half | Remove both halves; drop one workbench plus stored materials, page and recovery contents (creative drops contents only) |
 
 Adding/removing materials clears an existing enclosure; redraw it deliberately after changing membership. A selected Divider source expires after 30 seconds and cancels on distance, dimension, workbench replacement/removal, or locus removal. A full inventory causes recovered materials to drop beside you.
 

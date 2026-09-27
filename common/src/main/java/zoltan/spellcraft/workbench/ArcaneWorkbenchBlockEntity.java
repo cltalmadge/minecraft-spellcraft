@@ -21,6 +21,9 @@ public final class ArcaneWorkbenchBlockEntity extends BlockEntity {
     private WorkbenchWorkingAdapter.Snapshot snapshot;
     private long lastActivation = Long.MIN_VALUE;
     public ArcaneWorkbenchBlockEntity(BlockPos pos, BlockState blockState) { super(WorkbenchContent.entityType.get(), pos, blockState); reanalyze(); }
+    @Override public boolean isValidBlockState(BlockState blockState) {
+        return super.isValidBlockState(blockState) && blockState.getValue(ArcaneWorkbenchBlock.PART) == WorkbenchPart.BACK;
+    }
     /** Read-only outside the workbench package; server interaction owns mutations and changed(). */
     public ArcaneWorkbenchState state() { return state; }
     public String session() { return session; }
@@ -28,7 +31,10 @@ public final class ArcaneWorkbenchBlockEntity extends BlockEntity {
     public void reanalyze() { snapshot = WorkbenchWorkingAdapter.analyze(state, MaterialProfileResolver.bootstrap()); }
     public boolean authorized(Player player) {
         return level instanceof ServerLevel && !isRemoved() && !player.isSpectator() && player.mayBuild()
-            && player.level() == level && player.isWithinBlockInteractionRange(worldPosition, 0)
+            && player.level() == level && ArcaneWorkbenchLayout.withinReach(player, worldPosition, getBlockState())
+            && ArcaneWorkbenchLayout.validPair(level, worldPosition, getBlockState())
+            && level.mayInteract(player, worldPosition)
+            && level.mayInteract(player, ArcaneWorkbenchLayout.counterpartPos(worldPosition, getBlockState()))
             && level.getBlockEntity(worldPosition) == this;
     }
     public InteractionResult interact(Player player, InteractionHand hand, Direction face, Vec3 hit) {
@@ -36,7 +42,7 @@ public final class ArcaneWorkbenchBlockEntity extends BlockEntity {
         if (level == null) return InteractionResult.PASS;
         if (level.isClientSide()) return InteractionResult.SUCCESS;
         if (!authorized(player)) return InteractionResult.FAIL;
-        var local = hit.subtract(Vec3.atLowerCornerOf(worldPosition));
+        var local = ArcaneWorkbenchLayout.local(worldPosition, getBlockState(), hit);
         if (Math.abs(local.y - 1) > .01) return InteractionResult.FAIL;
         long before = state.revision();
         WorkbenchInteractions.handle(this, player, hand, local.x, local.z);

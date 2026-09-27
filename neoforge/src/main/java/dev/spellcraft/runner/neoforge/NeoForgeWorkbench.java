@@ -17,7 +17,7 @@ public final class NeoForgeWorkbench {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ArcaneWorkbenchBlockEntity>> TYPE = TYPES.register("arcane_workbench",
         () -> new BlockEntityType<>(ArcaneWorkbenchBlockEntity::new, Set.of(BLOCK.get())));
     static {
-        ITEMS.registerSimpleBlockItem(BLOCK);
+        ITEMS.registerItem("arcane_workbench", properties -> new ArcaneWorkbenchItem(BLOCK.get(), properties));
         ITEMS.registerItem("divider", DividerItem::new, properties -> properties.stacksTo(1));
     }
     public static void register(IEventBus bus) {

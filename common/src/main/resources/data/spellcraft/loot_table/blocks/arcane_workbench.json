@@ -9,11 +9,21 @@
           "name": "spellcraft:arcane_workbench"
         }
       ],
-      "conditions": [
-        {
-          "condition": "minecraft:survives_explosion"
-        }
-      ]
+      "condition": {
+        "type": "minecraft:all_of",
+        "terms": [
+          {
+            "type": "minecraft:survives_explosion"
+          },
+          {
+            "type": "minecraft:match_block",
+            "blocks": "spellcraft:arcane_workbench",
+            "state": {
+              "part": "back"
+            }
+          }
+        ]
+      }
     }
   ]
 }

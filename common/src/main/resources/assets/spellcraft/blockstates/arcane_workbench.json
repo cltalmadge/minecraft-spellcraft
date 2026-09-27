@@ -1,7 +1,36 @@
 {
   "variants": {
-    "": {
-      "model": "spellcraft:block/arcane_workbench"
+    "facing=north,part=front": {
+      "model": "spellcraft:block/arcane_workbench_front",
+      "y": 0
+    },
+    "facing=north,part=back": {
+      "model": "spellcraft:block/arcane_workbench_back",
+      "y": 0
+    },
+    "facing=east,part=front": {
+      "model": "spellcraft:block/arcane_workbench_front",
+      "y": 90
+    },
+    "facing=east,part=back": {
+      "model": "spellcraft:block/arcane_workbench_back",
+      "y": 90
+    },
+    "facing=south,part=front": {
+      "model": "spellcraft:block/arcane_workbench_front",
+      "y": 180
+    },
+    "facing=south,part=back": {
+      "model": "spellcraft:block/arcane_workbench_back",
+      "y": 180
+    },
+    "facing=west,part=front": {
+      "model": "spellcraft:block/arcane_workbench_front",
+      "y": 270
+    },
+    "facing=west,part=back": {
+      "model": "spellcraft:block/arcane_workbench_back",
+      "y": 270
     }
   }
 }
